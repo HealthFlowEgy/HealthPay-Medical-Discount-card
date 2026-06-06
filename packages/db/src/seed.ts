@@ -11,6 +11,7 @@
 
 import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import bcrypt from "bcryptjs";
@@ -49,8 +50,9 @@ interface ProviderSeedRow {
 
 /** Bulk-load the provider directory (idempotent: clears then re-inserts). */
 async function seedProviders(db: ReturnType<typeof getDb>): Promise<number> {
-  const file = join(__dirname, "seed-data", "providers.json");
-  const rows = JSON.parse(readFileSync(file, "utf8")) as ProviderSeedRow[];
+  // Directory is stored gzipped (Arabic-heavy JSON compresses ~9x).
+  const file = join(__dirname, "seed-data", "providers.json.gz");
+  const rows = JSON.parse(gunzipSync(readFileSync(file)).toString("utf8")) as ProviderSeedRow[];
   await db.delete(providers);
   const batchSize = 500;
   for (let i = 0; i < rows.length; i += batchSize) {

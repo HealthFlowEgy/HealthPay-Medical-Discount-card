@@ -35,7 +35,8 @@ Arabic specialty in `specialty_raw`, so nothing is lost.
 
 - `providers` table — the directory: `governorate`, `governorate_ar`, `area`,
   `address`, `provider_type`, `specialty`, `specialty_raw`, `name`. Seeded from
-  `packages/db/src/seed-data/providers.json` (extracted from the spreadsheet).
+  `packages/db/src/seed-data/providers.json.gz` (extracted from the spreadsheet;
+  stored gzipped — ~116 KB vs ~1 MB — and decompressed at seed time).
 - `service_requests` gains `provider_type`, `specialty`, `area`, `provider_id`
   plus member intake fields: `member_name_en`, `member_name_ar`, `company`,
   `gender`, `marital_status`. `gender` (and DOB) are derivable from the national
