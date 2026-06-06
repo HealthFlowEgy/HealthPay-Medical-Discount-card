@@ -8,7 +8,11 @@ function required(name: string): string {
 
 export const env = {
   get databaseUrl() {
-    return required("DATABASE_URL");
+    return (
+      process.env.DATABASE_URL ??
+      process.env.POSTGRES_URL ??
+      required("DATABASE_URL")
+    );
   },
   get appBaseUrl() {
     return process.env.APP_BASE_URL ?? "http://localhost:3000";

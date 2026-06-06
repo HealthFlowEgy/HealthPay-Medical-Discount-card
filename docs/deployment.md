@@ -4,15 +4,19 @@ The app is `apps/web` (Next.js 14) inside a pnpm monorepo. It needs a Postgres
 database (Neon) and a few secrets. Two parts: **(A) database** and **(B) the
 Vercel app**.
 
-## A. Database (Neon)
+## A. Database (Vercel Postgres / Neon)
 
-1. Create a Neon project → copy the **pooled** connection string (it contains
-   `-pooler` and ends with `?sslmode=require`).
-2. Apply the schema and (optionally) load the provider directory + demo data.
-   From a checkout of this repo:
+1. In the Vercel project → **Storage → Create Database → Postgres**, then
+   **Connect** it to the project. This auto-injects the connection env vars
+   (`DATABASE_URL`, `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`, …) into the
+   project — the app reads whichever is present, so no manual `DATABASE_URL`
+   wiring is needed.
+2. Initialize the schema + data once. From the Storage tab copy a connection
+   string (use the **non-pooling** one for migrations if offered), then from a
+   checkout of this repo:
 
    ```bash
-   DATABASE_URL="postgres://USER:PASS@ep-xxx-pooler.REGION.aws.neon.tech/neondb?sslmode=require" \
+   DATABASE_URL="<copied connection string>" \
    PII_ENCRYPTION_KEY="<your base64 32-byte key>" \
      bash scripts/setup-prod-db.sh --seed
    ```
@@ -59,7 +63,7 @@ vercel deploy --prod --token "$VERCEL_TOKEN"
 
 | Variable | Required | Notes |
 | --- | --- | --- |
-| `DATABASE_URL` | ✓ | Neon **pooled** Postgres connection string |
+| `DATABASE_URL` | auto | Injected by the Vercel Postgres integration (also accepts `POSTGRES_URL`) |
 | `PII_ENCRYPTION_KEY` | ✓ | base64 32-byte AES-256-GCM key (same as DB setup) |
 | `OPS_SESSION_SECRET` | ✓ | random secret for ops session JWTs |
 | `CRON_SECRET` | ✓ | bearer secret protecting the webhook-retry cron |
