@@ -35,7 +35,10 @@ function token(prefix: string): string {
   return `${prefix}_${randomBytes(24).toString("base64url")}`;
 }
 
-/** Build a structurally valid Egyptian National ID from parts. */
+/**
+ * Build a structurally valid Egyptian National ID from parts.
+ * Layout: C(1) YY(2) MM(2) DD(2) GG(2) serial(4) + a trailing check digit.
+ */
 function buildNid(
   century: 2 | 3,
   yy: string,
@@ -44,7 +47,7 @@ function buildNid(
   gov: string,
   serial: string,
 ): string {
-  const nid = `${century}${yy}${mm}${dd}${gov}${serial}`;
+  const nid = `${century}${yy}${mm}${dd}${gov}${serial}1`;
   if (nid.length !== 14) throw new Error(`Bad NID length: ${nid}`);
   const res = validateNationalId(nid);
   if (!res.ok) throw new Error(`Seed produced invalid NID ${nid}: ${res.reason}`);
@@ -130,7 +133,7 @@ async function main() {
     .values({
       name: "Demo Partner Co.",
       apiKeyHash: sha256(apiKey),
-      apiSecretHash: sha256(apiSecret),
+      apiSecretEncrypted: encryptPii(apiSecret),
       webhookUrl: "https://example.com/healthpay/webhook",
       webhookSecret,
       status: "active",

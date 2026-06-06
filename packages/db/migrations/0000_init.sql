@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS "partners" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" varchar(200) NOT NULL,
 	"api_key_hash" text NOT NULL,
-	"api_secret_hash" text NOT NULL,
+	"api_secret_encrypted" text NOT NULL,
 	"webhook_url" text,
 	"webhook_secret" text,
 	"status" "partner_status" DEFAULT 'active' NOT NULL,

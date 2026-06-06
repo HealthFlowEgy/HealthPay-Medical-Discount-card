@@ -52,8 +52,11 @@ export const partners = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     name: varchar("name", { length: 200 }).notNull(),
+    // API key is a bearer credential → stored one-way (sha256) for lookup.
     apiKeyHash: text("api_key_hash").notNull(),
-    apiSecretHash: text("api_secret_hash").notNull(),
+    // API secret is the HMAC signing key → must be recoverable to verify
+    // signatures, so it is stored ENCRYPTED at rest (AES-256-GCM), never hashed.
+    apiSecretEncrypted: text("api_secret_encrypted").notNull(),
     webhookUrl: text("webhook_url"),
     webhookSecret: text("webhook_secret"),
     status: partnerStatusEnum("status").notNull().default("active"),
