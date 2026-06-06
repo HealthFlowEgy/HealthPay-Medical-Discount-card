@@ -25,59 +25,13 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import type { ServiceType, Governorate, RequestStatus } from "@healthpay/shared";
+// Enum value lists come straight from @healthpay/shared — single source of
+// truth. The migration toolchain (drizzle-kit) resolves this at runtime via the
+// package's compiled `dist`, so `@healthpay/shared` must be built before
+// `db:generate` / `db:migrate` (wired into those scripts).
+import { SERVICE_TYPES, GOVERNORATES, REQUEST_STATUSES } from "@healthpay/shared";
 
 // ── Enums ───────────────────────────────────────────────────────────────────
-// Value lists are declared locally (not imported as runtime values) so the
-// migration toolchain — which bundles this file via CJS — never has to resolve
-// the workspace package at runtime. `satisfies` guarantees every value is a
-// valid member of the shared union, and `schema.drift.test.ts` asserts these
-// arrays stay exactly in sync with @healthpay/shared.
-const SERVICE_TYPES = [
-  "medical_clinic_visit",
-  "dental_clinic_visit",
-  "lab_investigation",
-  "radiology_investigation",
-] as const satisfies readonly ServiceType[];
-
-const GOVERNORATES = [
-  "Cairo",
-  "Giza",
-  "Alexandria",
-  "Dakahlia",
-  "Red Sea",
-  "Beheira",
-  "Fayoum",
-  "Gharbia",
-  "Ismailia",
-  "Menofia",
-  "Minya",
-  "Qalyubia",
-  "New Valley",
-  "Suez",
-  "Aswan",
-  "Assiut",
-  "Beni Suef",
-  "Port Said",
-  "Damietta",
-  "Sharqia",
-  "South Sinai",
-  "Kafr El Sheikh",
-  "Matrouh",
-  "Luxor",
-  "Qena",
-  "North Sinai",
-  "Sohag",
-] as const satisfies readonly Governorate[];
-
-const REQUEST_STATUSES = [
-  "pending_quote",
-  "quoted",
-  "confirmed",
-  "expired",
-  "cancelled",
-] as const satisfies readonly RequestStatus[];
-
 export const serviceTypeEnum = pgEnum("service_type", SERVICE_TYPES);
 export const governorateEnum = pgEnum("governorate", GOVERNORATES);
 export const requestStatusEnum = pgEnum("request_status", REQUEST_STATUSES);
