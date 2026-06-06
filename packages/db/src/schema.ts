@@ -29,12 +29,24 @@ import { sql } from "drizzle-orm";
 // truth. The migration toolchain (drizzle-kit) resolves this at runtime via the
 // package's compiled `dist`, so `@healthpay/shared` must be built before
 // `db:generate` / `db:migrate` (wired into those scripts).
-import { SERVICE_TYPES, GOVERNORATES, REQUEST_STATUSES } from "@healthpay/shared";
+import {
+  SERVICE_TYPES,
+  GOVERNORATES,
+  REQUEST_STATUSES,
+  PROVIDER_TYPES,
+  SPECIALTIES,
+  GENDERS,
+  MARITAL_STATUSES,
+} from "@healthpay/shared";
 
 // ── Enums ───────────────────────────────────────────────────────────────────
 export const serviceTypeEnum = pgEnum("service_type", SERVICE_TYPES);
 export const governorateEnum = pgEnum("governorate", GOVERNORATES);
 export const requestStatusEnum = pgEnum("request_status", REQUEST_STATUSES);
+export const providerTypeEnum = pgEnum("provider_type", PROVIDER_TYPES);
+export const specialtyEnum = pgEnum("specialty", SPECIALTIES);
+export const genderEnum = pgEnum("gender", GENDERS);
+export const maritalStatusEnum = pgEnum("marital_status", MARITAL_STATUSES);
 export const partnerStatusEnum = pgEnum("partner_status", ["active", "suspended"]);
 export const opsRoleEnum = pgEnum("ops_role", ["admin", "agent"]);
 export const actorTypeEnum = pgEnum("actor_type", ["partner", "ops", "user", "system"]);
@@ -67,6 +79,30 @@ export const partners = pgTable(
   }),
 );
 
+// ── Providers (service directory) ─────────────────────────────────────────────
+export const providers = pgTable(
+  "providers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    governorate: governorateEnum("governorate"),
+    governorateAr: text("governorate_ar"),
+    area: text("area"),
+    address: text("address"),
+    providerType: providerTypeEnum("provider_type"),
+    specialty: specialtyEnum("specialty"),
+    // Original Arabic specialty string from the source directory (lossless).
+    specialtyRaw: text("specialty_raw"),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    governorateIdx: index("providers_governorate_idx").on(t.governorate),
+    areaIdx: index("providers_area_idx").on(t.area),
+    providerTypeIdx: index("providers_provider_type_idx").on(t.providerType),
+    specialtyIdx: index("providers_specialty_idx").on(t.specialty),
+  }),
+);
+
 // ── Service requests ──────────────────────────────────────────────────────────
 export const serviceRequests = pgTable(
   "service_requests",
@@ -75,16 +111,31 @@ export const serviceRequests = pgTable(
     partnerId: uuid("partner_id")
       .notNull()
       .references(() => partners.id, { onDelete: "restrict" }),
+    // `serviceType` is retained (derived) for back-compat; `providerType` +
+    // `specialty` are the richer matching axes from the directory.
     serviceType: serviceTypeEnum("service_type").notNull(),
+    providerType: providerTypeEnum("provider_type"),
+    specialty: specialtyEnum("specialty"),
     governorate: governorateEnum("governorate").notNull(),
+    area: text("area"),
     city: text("city"),
     lat: doublePrecision("lat"),
     lng: doublePrecision("lng"),
+    // Optional pre-selected directory provider.
+    providerId: uuid("provider_id").references(() => providers.id, {
+      onDelete: "set null",
+    }),
     // PII — encrypted at rest (AES-256-GCM payloads).
     nationalIdEncrypted: text("national_id_encrypted").notNull(),
     nationalIdLast4: varchar("national_id_last4", { length: 4 }).notNull(),
     mobileEncrypted: text("mobile_encrypted").notNull(),
     mobileE164: varchar("mobile_e164", { length: 20 }).notNull(),
+    // Member intake (from the "أسئلة اساسية" sheet).
+    memberNameEn: varchar("member_name_en", { length: 200 }),
+    memberNameAr: varchar("member_name_ar", { length: 200 }),
+    company: varchar("company", { length: 200 }),
+    gender: genderEnum("gender"),
+    maritalStatus: maritalStatusEnum("marital_status"),
     status: requestStatusEnum("status").notNull().default("pending_quote"),
     partnerReference: varchar("partner_reference", { length: 255 }),
     note: text("note"),
@@ -115,6 +166,10 @@ export const pricingOptions = pgTable(
     requestId: uuid("request_id")
       .notNull()
       .references(() => serviceRequests.id, { onDelete: "cascade" }),
+    // Optional link to a directory provider; providerName is the display value.
+    providerId: uuid("provider_id").references(() => providers.id, {
+      onDelete: "set null",
+    }),
     providerName: varchar("provider_name", { length: 200 }).notNull(),
     providerAddress: text("provider_address"),
     serviceDescription: text("service_description").notNull(),
@@ -223,6 +278,8 @@ export const nowSql = sql`now()`;
 // ── Inferred types ────────────────────────────────────────────────────────────
 export type Partner = typeof partners.$inferSelect;
 export type NewPartner = typeof partners.$inferInsert;
+export type Provider = typeof providers.$inferSelect;
+export type NewProvider = typeof providers.$inferInsert;
 export type ServiceRequest = typeof serviceRequests.$inferSelect;
 export type NewServiceRequest = typeof serviceRequests.$inferInsert;
 export type PricingOption = typeof pricingOptions.$inferSelect;

@@ -77,3 +77,36 @@ const GOVERNORATE_SET = new Set<string>(GOVERNORATES);
 export function isGovernorate(value: unknown): value is Governorate {
   return typeof value === "string" && GOVERNORATE_SET.has(value);
 }
+
+/**
+ * Normalize Arabic text for matching: unify alef-maksura/yaa and taa-marbuta,
+ * strip tatweel/diacritics and collapse whitespace.
+ */
+export function normalizeArabic(s: string): string {
+  return s
+    .replace(/[ً-ْـ]/g, "") // diacritics + tatweel
+    .replace(/ى/g, "ي") // ى -> ي
+    .replace(/[أإآ]/g, "ا") // أ إ آ -> ا
+    .replace(/ة/g, "ه") // ة -> ه
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Resolve the canonical governorate from an Arabic label, tolerating the
+// spelling variants seen in the provider directory (e.g. "مرسى مطروح", "بنى سويف").
+const GOVERNORATE_BY_ARABIC: Map<string, Governorate> = (() => {
+  const m = new Map<string, Governorate>();
+  for (const g of GOVERNORATES) m.set(normalizeArabic(GOVERNORATE_LABELS[g].ar), g);
+  const extra: Record<string, Governorate> = {
+    "مرسى مطروح": "Matrouh",
+    "بنى سويف": "Beni Suef",
+    "الاسكندرية": "Alexandria",
+    "القليوبيه": "Qalyubia",
+  };
+  for (const [ar, g] of Object.entries(extra)) m.set(normalizeArabic(ar), g);
+  return m;
+})();
+
+export function governorateFromArabic(raw: string): Governorate | undefined {
+  return GOVERNORATE_BY_ARABIC.get(normalizeArabic(raw));
+}

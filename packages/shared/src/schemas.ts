@@ -8,6 +8,9 @@
 import { z } from "zod";
 import { GOVERNORATES } from "./governorates.js";
 import { SERVICE_TYPES } from "./service-type.js";
+import { PROVIDER_TYPES } from "./provider-types.js";
+import { SPECIALTIES } from "./specialties.js";
+import { GENDERS, MARITAL_STATUSES } from "./member.js";
 import { validateNationalId } from "./national-id.js";
 import { normalizeEgyptianMobile } from "./mobile.js";
 import { validatePricing, DEFAULT_CURRENCY } from "./pricing.js";
@@ -15,6 +18,10 @@ import { REQUEST_STATUSES } from "./state-machine.js";
 
 export const governorateSchema = z.enum(GOVERNORATES);
 export const serviceTypeSchema = z.enum(SERVICE_TYPES);
+export const providerTypeSchema = z.enum(PROVIDER_TYPES);
+export const specialtySchema = z.enum(SPECIALTIES);
+export const genderSchema = z.enum(GENDERS);
+export const maritalStatusSchema = z.enum(MARITAL_STATUSES);
 export const requestStatusSchema = z.enum(REQUEST_STATUSES);
 
 /** National ID: validated and transformed to expose only non-sensitive parts. */
@@ -42,23 +49,49 @@ const latSchema = z.number().min(-90).max(90);
 const lngSchema = z.number().min(-180).max(180);
 
 /** POST /api/v1/requests — partner creates a service request. */
-export const createRequestSchema = z.object({
-  serviceType: serviceTypeSchema,
-  governorate: governorateSchema,
-  city: z.string().trim().min(1).max(120).optional(),
-  lat: latSchema.optional(),
-  lng: lngSchema.optional(),
-  nationalId: nationalIdSchema,
-  mobile: mobileSchema,
-  partnerReference: z.string().trim().max(255).optional(),
-  note: z.string().trim().max(1000).optional(),
-});
+export const createRequestSchema = z
+  .object({
+    // Service matching: `providerType` is the primary axis; `serviceType` is
+    // accepted for back-compat. At least one must be supplied.
+    providerType: providerTypeSchema.optional(),
+    serviceType: serviceTypeSchema.optional(),
+    specialty: specialtySchema.optional(),
+    governorate: governorateSchema,
+    area: z.string().trim().min(1).max(120).optional(),
+    city: z.string().trim().min(1).max(120).optional(),
+    lat: latSchema.optional(),
+    lng: lngSchema.optional(),
+    /** Optional: a directory provider the member/partner pre-selected. */
+    providerId: z.string().uuid().optional(),
+    nationalId: nationalIdSchema,
+    mobile: mobileSchema,
+    // Member intake (from the "أسئلة اساسية" sheet). Name/company/marital are
+    // captured here; gender + DOB are also derivable from the national ID.
+    memberNameEn: z.string().trim().max(200).optional(),
+    memberNameAr: z.string().trim().max(200).optional(),
+    company: z.string().trim().max(200).optional(),
+    gender: genderSchema.optional(),
+    maritalStatus: maritalStatusSchema.optional(),
+    partnerReference: z.string().trim().max(255).optional(),
+    note: z.string().trim().max(1000).optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (!v.providerType && !v.serviceType) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Provide either `providerType` or `serviceType`.",
+        path: ["providerType"],
+      });
+    }
+  });
 export type CreateRequestInput = z.input<typeof createRequestSchema>;
 export type CreateRequestParsed = z.output<typeof createRequestSchema>;
 
 /** A single pricing option attached by ops. */
 export const pricingOptionInputSchema = z
   .object({
+    /** Optional link to a directory provider; providerName stays the display value. */
+    providerId: z.string().uuid().optional(),
     providerName: z.string().trim().min(1).max(200),
     providerAddress: z.string().trim().max(500).optional(),
     serviceDescription: z.string().trim().min(1).max(500),
@@ -88,6 +121,17 @@ export const attachOptionsSchema = z.object({
 /** Confirm a quote by selecting exactly one option. */
 export const confirmSchema = z.object({
   optionId: z.string().uuid(),
+});
+
+/** Provider directory search (GET /api/v1/providers and ops equivalent). */
+export const providerSearchQuerySchema = z.object({
+  governorate: governorateSchema.optional(),
+  area: z.string().trim().max(120).optional(),
+  providerType: providerTypeSchema.optional(),
+  specialty: specialtySchema.optional(),
+  q: z.string().trim().max(120).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
 });
 
 /** Ops queue filters. */

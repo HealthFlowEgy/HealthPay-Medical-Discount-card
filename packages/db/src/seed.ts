@@ -10,22 +10,54 @@
  */
 
 import { createHash, randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import bcrypt from "bcryptjs";
 import {
   validateNationalId,
   computeDiscountPct,
+  serviceTypeToProviderType,
   type ServiceType,
   type Governorate,
+  type ProviderType,
+  type Specialty,
 } from "@healthpay/shared";
 import { getDb, closeDb } from "./client.js";
 import { encryptPii } from "./crypto.js";
 import {
   partners,
+  providers,
   opsUsers,
   serviceRequests,
   pricingOptions,
   confirmations,
 } from "./schema.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+interface ProviderSeedRow {
+  governorate: Governorate | null;
+  governorateAr: string | null;
+  area: string | null;
+  address: string | null;
+  providerType: ProviderType | null;
+  specialty: Specialty | null;
+  specialtyRaw: string | null;
+  name: string;
+}
+
+/** Bulk-load the provider directory (idempotent: clears then re-inserts). */
+async function seedProviders(db: ReturnType<typeof getDb>): Promise<number> {
+  const file = join(__dirname, "seed-data", "providers.json");
+  const rows = JSON.parse(readFileSync(file, "utf8")) as ProviderSeedRow[];
+  await db.delete(providers);
+  const batchSize = 500;
+  for (let i = 0; i < rows.length; i += batchSize) {
+    await db.insert(providers).values(rows.slice(i, i + batchSize));
+  }
+  return rows.length;
+}
 
 function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
@@ -152,8 +184,20 @@ async function main() {
     ])
     .returning();
 
+  // ── Providers directory ───────────────────────────────────────────────────────
+  const providerCount = await seedProviders(db);
+
   // ── Service requests ──────────────────────────────────────────────────────────
   const validityHours = Number(process.env.QUOTE_VALIDITY_HOURS ?? 48);
+  const sampleNames: Array<[string, string, string]> = [
+    ["Ahmed Mansour", "أحمد منصور", "Acme Corp"],
+    ["Sara Ali", "سارة علي", "Nile Tech"],
+    ["Mohamed Hassan", "محمد حسن", "Delta Foods"],
+    ["Mona Ibrahim", "منى إبراهيم", "Cairo Bank"],
+    ["Omar Khaled", "عمر خالد", "Giza Pharma"],
+    ["Laila Fouad", "ليلى فؤاد", "Suez Logistics"],
+  ];
+  let idx = 0;
   for (const s of SAMPLES) {
     const last4 = s.nid.slice(-4);
     const quoteToken = token("qt");
@@ -161,17 +205,27 @@ async function main() {
     // Expired sample: push expiry into the past.
     if (s.status === "expired") expiresAt.setTime(Date.now() - 3600_000);
 
+    const parsedNid = validateNationalId(s.nid);
+    const gender = parsedNid.ok ? parsedNid.parsed.gender : null;
+    const [nameEn, nameAr, company] = sampleNames[idx % sampleNames.length]!;
+    idx++;
+
     const [req] = await db
       .insert(serviceRequests)
       .values({
         partnerId: partner.id,
         serviceType: s.serviceType,
+        providerType: serviceTypeToProviderType(s.serviceType),
         governorate: s.governorate,
         city: s.city,
         nationalIdEncrypted: encryptPii(s.nid),
         nationalIdLast4: last4,
         mobileEncrypted: encryptPii(s.mobile),
         mobileE164: s.mobile,
+        memberNameEn: nameEn,
+        memberNameAr: nameAr,
+        company,
+        gender,
         status: s.status,
         partnerReference: s.partnerReference,
         quoteTokenHash: sha256(quoteToken),
@@ -215,6 +269,7 @@ async function main() {
   }
 
   console.log("✔ Seed complete.\n");
+  console.log(`  Providers directory loaded: ${providerCount} rows`);
   console.log("─".repeat(60));
   console.log("Demo partner credentials (shown once — copy now):");
   console.log(`  API key:        ${apiKey}`);
