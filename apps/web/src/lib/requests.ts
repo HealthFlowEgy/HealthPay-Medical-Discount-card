@@ -16,9 +16,8 @@ import {
   pricingOptions,
   confirmations,
 } from "@healthpay/db/schema";
-import { createQuoteToken } from "./tokens.js";
+import { createQuoteToken, hashQuoteToken, buildQuoteUrl } from "./tokens.js";
 import { sendQuoteLinkSms } from "./sms/index.js";
-import { buildQuoteUrl } from "./tokens.js";
 import { transitionRequest } from "./transitions.js";
 import { writeAudit } from "./audit.js";
 import { publishOpsEvent } from "./events.js";
@@ -92,6 +91,19 @@ export async function getRequestById(
     .select()
     .from(serviceRequests)
     .where(eq(serviceRequests.id, id))
+    .limit(1);
+  return row;
+}
+
+/** Look up a request by its hosted-page token (compared by hash). */
+export async function getRequestByToken(
+  db: Database,
+  token: string,
+): Promise<ServiceRequest | undefined> {
+  const [row] = await db
+    .select()
+    .from(serviceRequests)
+    .where(eq(serviceRequests.quoteTokenHash, hashQuoteToken(token)))
     .limit(1);
   return row;
 }
