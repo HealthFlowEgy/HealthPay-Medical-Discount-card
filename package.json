@@ -1,0 +1,26 @@
+{
+  "name": "healthpay-quote-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "HealthPay Quote Engine — medical-discount pricing quote flow for partner platforms.",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "db:generate": "pnpm --filter @healthpay/db generate",
+    "db:migrate": "pnpm --filter @healthpay/db migrate",
+    "db:seed": "pnpm --filter @healthpay/db seed",
+    "dev": "pnpm --filter @healthpay/web dev",
+    "demo": "pnpm --filter @healthpay/db seed && pnpm --filter @healthpay/web demo"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}
