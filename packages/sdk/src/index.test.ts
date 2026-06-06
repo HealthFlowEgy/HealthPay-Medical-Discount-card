@@ -119,6 +119,32 @@ describe("HealthPay client", () => {
   });
 });
 
+describe("providers.search", () => {
+  it("builds a filtered query and returns results", async () => {
+    let url = "";
+    const hp = new HealthPay({
+      ...opts,
+      fetch: mockFetch((u) => {
+        url = u;
+        return jsonResponse(200, { items: [{ id: "p1", name: "Lab" }], total: 1, page: 1, pageSize: 25 });
+      }),
+    });
+    const res = await hp.providers.search({ governorate: "Cairo", providerType: "labs", q: "Lab" });
+    expect(url).toContain("/api/v1/providers?");
+    expect(url).toContain("governorate=Cairo");
+    expect(url).toContain("providerType=labs");
+    expect(res.items[0]!.name).toBe("Lab");
+  });
+});
+
+describe("bilingual catalog re-exports", () => {
+  it("exposes label maps + label() in both languages", async () => {
+    const { PROVIDER_TYPE_LABELS, SPECIALTY_LABELS, label } = await import("./index.js");
+    expect(label(PROVIDER_TYPE_LABELS.labs, "ar")).toBe("معامل تحاليل");
+    expect(label(SPECIALTY_LABELS.dentistry, "en")).toBe("Dentistry");
+  });
+});
+
 describe("webhooks.verify", () => {
   const secret = "whsec_test";
   const hp = new HealthPay({ ...opts, fetch: mockFetch(() => jsonResponse(200, {})) });

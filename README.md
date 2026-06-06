@@ -37,7 +37,17 @@ docs/         # api.md, integration.md                                 (upcoming
 | 7 | Tests, seed/demo script, deploy notes (Vercel + Neon) | ✅ done |
 
 Docs: [`docs/api.md`](docs/api.md) · [`docs/integration.md`](docs/integration.md) ·
-[`docs/openapi.json`](docs/openapi.json) · SDK: [`packages/sdk/README.md`](packages/sdk/README.md)
+[`docs/service-matching.md`](docs/service-matching.md) · [`docs/openapi.json`](docs/openapi.json) ·
+SDK: [`packages/sdk/README.md`](packages/sdk/README.md)
+
+### Service matching & bilingual UI
+
+A **provider directory** (3,386 providers, 27 governorates → 243 areas → 8
+provider types → 26 specialties) drives matching — see
+[`docs/service-matching.md`](docs/service-matching.md). The taxonomy is bilingual
+(EN/AR); the web app (landing, dashboard, hosted quote page) has a persisted
+EN/AR toggle with RTL, defaulting to Arabic. Requests also capture member intake
+fields (Arabic/English name, company, gender, marital status).
 
 ## Develop
 

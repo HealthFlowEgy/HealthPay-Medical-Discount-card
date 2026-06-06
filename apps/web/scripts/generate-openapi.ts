@@ -15,6 +15,7 @@ import {
   attachOptionsSchema,
   confirmSchema,
   pricingOptionInputSchema,
+  providerSearchQuerySchema,
 } from "@healthpay/shared";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -82,9 +83,24 @@ const doc = {
       AttachOptions: schema(attachOptionsSchema, "AttachOptions"),
       PricingOptionInput: schema(pricingOptionInputSchema, "PricingOptionInput"),
       Confirm: schema(confirmSchema, "Confirm"),
+      ProviderSearch: schema(providerSearchQuerySchema, "ProviderSearch"),
     },
   },
   paths: {
+    "/api/v1/providers": {
+      get: {
+        summary: "Search the provider directory (service matching)",
+        security: partnerSecurity,
+        parameters: [
+          query("governorate"),
+          query("area"),
+          query("providerType"),
+          query("specialty"),
+          query("q"),
+        ],
+        responses: { "200": { description: "OK" }, ...errorResponses },
+      },
+    },
     "/api/v1/requests": {
       post: {
         summary: "Create a service request",
@@ -178,6 +194,9 @@ function pathParam(name: string, format?: string) {
     required: true,
     schema: { type: "string", ...(format ? { format } : {}) },
   };
+}
+function query(name: string) {
+  return { name, in: "query", required: false, schema: { type: "string" } };
 }
 
 const outDir = resolve(repoRoot, "docs");

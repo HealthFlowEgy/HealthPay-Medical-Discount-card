@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { SERVICE_TYPE_LABELS } from "@healthpay/shared";
+import {
+  SERVICE_TYPE_LABELS,
+  PROVIDER_TYPE_LABELS,
+  GOVERNORATE_LABELS,
+  type ProviderType,
+  type Governorate,
+} from "@healthpay/shared";
+import { useI18n, LanguageToggle } from "@/components/LocaleProvider";
 
 interface Option {
   id: string;
@@ -19,15 +26,20 @@ interface Quote {
   id: string;
   status: string;
   serviceType: keyof typeof SERVICE_TYPE_LABELS;
-  governorate: string;
+  providerType: ProviderType | null;
+  governorate: Governorate;
+  area: string | null;
   city: string | null;
   mobile: string;
+  memberNameAr: string | null;
+  memberNameEn: string | null;
   expiresAt: string;
   options: Option[];
   selectedOptionId: string | null;
 }
 
 export default function QuotePage({ params }: { params: { token: string } }) {
+  const { t } = useI18n();
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -38,13 +50,13 @@ export default function QuotePage({ params }: { params: { token: string } }) {
     const res = await fetch(`/api/v1/quote/${params.token}`, { cache: "no-store" });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      setLoadError(body?.error?.message ?? "This quote link is invalid.");
+      setLoadError(body?.error?.message ?? t("quote.linkUnavailable"));
       return;
     }
     const data: Quote = await res.json();
     setQuote(data);
     setSelected(data.selectedOptionId);
-  }, [params.token]);
+  }, [params.token, t]);
 
   useEffect(() => {
     void load();
@@ -61,10 +73,10 @@ export default function QuotePage({ params }: { params: { token: string } }) {
         body: JSON.stringify({ optionId: selected }),
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body?.error?.message ?? "Could not confirm your selection.");
+      if (!res.ok) throw new Error(body?.error?.message ?? t("quote.couldNotConfirm"));
       setQuote(body);
     } catch (err) {
-      setConfirmError(err instanceof Error ? err.message : "Could not confirm.");
+      setConfirmError(err instanceof Error ? err.message : t("quote.couldNotConfirm"));
     } finally {
       setConfirming(false);
     }
@@ -72,21 +84,24 @@ export default function QuotePage({ params }: { params: { token: string } }) {
 
   return (
     <main className="mx-auto min-h-screen max-w-2xl px-5 py-10">
-      <div className="mb-6 flex items-center gap-2">
-        <span className="rounded bg-teal-500 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-white">
-          HealthPay
-        </span>
-        <span className="text-sm text-navy-500">Medical discount pricing</span>
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="rounded bg-teal-500 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+            HealthPay
+          </span>
+          <span className="text-sm text-navy-500">{t("brand.tagline")}</span>
+        </div>
+        <LanguageToggle className="text-navy-700" />
       </div>
 
       {loadError ? (
         <Card>
-          <h1 className="text-xl font-semibold text-navy-900">Link not available</h1>
+          <h1 className="text-xl font-semibold text-navy-900">{t("quote.linkUnavailable")}</h1>
           <p className="mt-2 text-navy-600">{loadError}</p>
         </Card>
       ) : !quote ? (
         <Card>
-          <p className="text-navy-500">Loading your pricing…</p>
+          <p className="text-navy-500">{t("quote.loadingPricing")}</p>
         </Card>
       ) : (
         <QuoteBody
@@ -99,9 +114,7 @@ export default function QuotePage({ params }: { params: { token: string } }) {
         />
       )}
 
-      <p className="mt-8 text-center text-xs text-navy-400">
-        HealthPay is a medical discount card (15%–70% off services). It is not insurance.
-      </p>
+      <p className="mt-8 text-center text-xs text-navy-400">{t("notInsurance")}</p>
     </main>
   );
 }
@@ -121,35 +134,35 @@ function QuoteBody({
   confirming: boolean;
   confirmError: string | null;
 }) {
-  const serviceLabel = SERVICE_TYPE_LABELS[quote.serviceType]?.en ?? quote.serviceType;
+  const { t, L, locale } = useI18n();
+  const serviceLabel = quote.providerType
+    ? L(PROVIDER_TYPE_LABELS[quote.providerType])
+    : L(SERVICE_TYPE_LABELS[quote.serviceType]);
+  const govLabel = L(GOVERNORATE_LABELS[quote.governorate]);
+  const memberName = locale === "ar" ? quote.memberNameAr : quote.memberNameEn;
 
   if (quote.status === "pending_quote") {
     return (
       <Card>
-        <h1 className="text-xl font-semibold text-navy-900">Your pricing is being prepared</h1>
+        <h1 className="text-xl font-semibold text-navy-900">{t("quote.preparingTitle")}</h1>
         <p className="mt-2 text-navy-600">
-          Our team is gathering discount options for your {serviceLabel.toLowerCase()} in{" "}
-          {quote.governorate}. You&apos;ll receive an SMS as soon as they&apos;re ready.
+          {serviceLabel} · {govLabel}
         </p>
       </Card>
     );
   }
-
   if (quote.status === "expired") {
     return (
       <Card>
-        <h1 className="text-xl font-semibold text-navy-900">This quote has expired</h1>
-        <p className="mt-2 text-navy-600">
-          Please submit a new request through your provider to receive fresh pricing.
-        </p>
+        <h1 className="text-xl font-semibold text-navy-900">{t("quote.expiredTitle")}</h1>
+        <p className="mt-2 text-navy-600">{t("quote.expiredDesc")}</p>
       </Card>
     );
   }
-
   if (quote.status === "cancelled") {
     return (
       <Card>
-        <h1 className="text-xl font-semibold text-navy-900">This request was cancelled</h1>
+        <h1 className="text-xl font-semibold text-navy-900">{t("quote.cancelledTitle")}</h1>
       </Card>
     );
   }
@@ -159,23 +172,24 @@ function QuoteBody({
   return (
     <div>
       <div className="mb-4">
+        {memberName && <p className="text-sm text-navy-500">{memberName}</p>}
         <h1 className="text-2xl font-bold text-navy-900">
-          {isConfirmed ? "Your choice is confirmed" : "Choose your pricing option"}
+          {isConfirmed ? t("quote.confirmedTitle") : t("quote.chooseTitle")}
         </h1>
         <p className="mt-1 text-navy-600">
-          {serviceLabel} · {quote.governorate}
-          {quote.city ? ` · ${quote.city}` : ""}
+          {serviceLabel} · {govLabel}
+          {quote.area ? ` · ${quote.area}` : ""}
         </p>
         {!isConfirmed && (
           <p className="mt-1 text-sm text-navy-400">
-            Valid until {new Date(quote.expiresAt).toLocaleString()}
+            {t("quote.validUntil")} {new Date(quote.expiresAt).toLocaleString()}
           </p>
         )}
       </div>
 
       {isConfirmed && (
         <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-          ✓ Thank you. Your selection has been sent to your provider.
+          {t("quote.thankYou")}
         </div>
       )}
 
@@ -189,7 +203,7 @@ function QuoteBody({
               type="button"
               disabled={isConfirmed}
               onClick={() => setSelected(o.id)}
-              className={`block w-full rounded-xl border-2 p-4 text-left transition ${
+              className={`block w-full rounded-xl border-2 p-4 text-start transition ${
                 isChosen
                   ? "border-emerald-500 bg-emerald-50"
                   : isSel
@@ -205,7 +219,7 @@ function QuoteBody({
                     <p className="mt-1 text-xs text-navy-400">{o.providerAddress}</p>
                   )}
                 </div>
-                <div className="text-right">
+                <div className="text-end">
                   <p className="text-sm text-navy-400 line-through">
                     {o.listPrice} {o.currency}
                   </p>
@@ -213,13 +227,11 @@ function QuoteBody({
                     {o.discountedPrice} {o.currency}
                   </p>
                   <span className="inline-block rounded bg-gold-400/20 px-1.5 py-0.5 text-xs font-semibold text-gold-500">
-                    Save {o.discountPct}%
+                    {t("quote.save")} {o.discountPct}%
                   </span>
                 </div>
               </div>
-              {o.validityNote && (
-                <p className="mt-2 text-xs text-navy-400">{o.validityNote}</p>
-              )}
+              {o.validityNote && <p className="mt-2 text-xs text-navy-400">{o.validityNote}</p>}
             </button>
           );
         })}
@@ -237,7 +249,7 @@ function QuoteBody({
             disabled={!selected || confirming}
             className="mt-5 w-full rounded-xl bg-navy-900 py-3 font-semibold text-white hover:bg-navy-800 disabled:opacity-50"
           >
-            {confirming ? "Confirming…" : "Confirm my selection"}
+            {confirming ? t("quote.confirming") : t("quote.confirm")}
           </button>
         </>
       )}

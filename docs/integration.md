@@ -144,6 +144,47 @@ renderQuoteCards(document.getElementById("cards")!, {
 });
 ```
 
+## 6b. Service matching & the provider directory
+
+Requests are matched against a provider directory along
+`governorate → area → providerType → specialty → provider`. Prefer the richer
+`providerType` (8 values) over the legacy `serviceType` (4 values); supply one.
+Optionally narrow with `specialty` and `area`, and pre-select a `providerId`.
+
+Search the directory (also available without the SDK at `GET /api/v1/providers`):
+
+```ts
+const { items } = await hp.providers.search({
+  governorate: "Cairo",
+  providerType: "labs",
+  specialty: "labs",
+  q: "Alfa",
+});
+const req = await hp.requests.create({
+  providerType: "labs",
+  specialty: "labs",
+  location: { governorate: "Cairo", area: "Nasr City" },
+  providerId: items[0]?.id,            // optional pre-selection
+  nationalId: "30101010123451",
+  mobile: "+201001234567",
+  memberNameAr: "أحمد منصور",
+  memberNameEn: "Ahmed Mansour",
+  company: "Acme Corp",
+  maritalStatus: "married",            // gender + DOB are derived from the ID
+});
+```
+
+### Bilingual labels (Arabic / English)
+
+The SDK re-exports bilingual label maps and helpers, so you can render the
+taxonomy in either language:
+
+```ts
+import { PROVIDER_TYPE_LABELS, SPECIALTY_LABELS, label } from "@healthpay/quote-sdk";
+label(PROVIDER_TYPE_LABELS["labs"], "ar");   // "معامل تحاليل"
+label(SPECIALTY_LABELS["dentistry"], "en");  // "Dentistry"
+```
+
 ## 7. Validation rules you should pre-check
 
 - **National ID**: 14 digits, century digit 2/3, valid embedded birthdate and

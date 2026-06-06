@@ -13,6 +13,8 @@ export async function listRequests(db: Database, q: OpsQueueQuery) {
   if (q.status) filters.push(eq(serviceRequests.status, q.status));
   if (q.governorate) filters.push(eq(serviceRequests.governorate, q.governorate));
   if (q.serviceType) filters.push(eq(serviceRequests.serviceType, q.serviceType));
+  if (q.providerType) filters.push(eq(serviceRequests.providerType, q.providerType));
+  if (q.specialty) filters.push(eq(serviceRequests.specialty, q.specialty));
   if (q.q) {
     const like = `%${q.q}%`;
     const search = or(
@@ -36,7 +38,10 @@ export async function listRequests(db: Database, q: OpsQueueQuery) {
       id: serviceRequests.id,
       status: serviceRequests.status,
       serviceType: serviceRequests.serviceType,
+      providerType: serviceRequests.providerType,
+      specialty: serviceRequests.specialty,
       governorate: serviceRequests.governorate,
+      area: serviceRequests.area,
       city: serviceRequests.city,
       mobileE164: serviceRequests.mobileE164,
       nationalIdLast4: serviceRequests.nationalIdLast4,

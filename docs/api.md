@@ -79,6 +79,18 @@ Response `201`:
 }
 ```
 
+In addition to the fields above, `POST /api/v1/requests` accepts the richer
+matching axes and member intake fields: `providerType` (8 values; preferred over
+`serviceType`), `specialty`, `area`, `providerId`, `memberNameEn`, `memberNameAr`,
+`company`, `gender`, `maritalStatus`. Supply either `providerType` or
+`serviceType`; `gender`/DOB are derivable from the national ID.
+
+### `GET /api/v1/providers`
+
+Search the provider directory (service matching). Query: `governorate`, `area`,
+`providerType`, `specialty`, `q`, `page`, `pageSize`. Also available to ops at
+`GET /api/v1/ops/providers`. Returns `{ items, total, page, pageSize }`.
+
 ### `GET /api/v1/requests/:id`
 
 Returns the current status, masked mobile, `nationalIdLast4`, and — when

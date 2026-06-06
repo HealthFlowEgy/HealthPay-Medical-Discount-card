@@ -15,10 +15,12 @@ export async function GET(req: Request) {
     const parsed = opsQueueQuerySchema.safeParse({
       status: url.searchParams.get("status") ?? undefined,
       governorate: url.searchParams.get("governorate") ?? undefined,
-      serviceType:
-        url.searchParams.get("serviceType") ??
-        url.searchParams.get("service_type") ??
+      serviceType: url.searchParams.get("serviceType") ?? undefined,
+      providerType:
+        url.searchParams.get("providerType") ??
+        url.searchParams.get("provider_type") ??
         undefined,
+      specialty: url.searchParams.get("specialty") ?? undefined,
       q: url.searchParams.get("q") ?? undefined,
       page: url.searchParams.get("page") ?? undefined,
       pageSize: url.searchParams.get("pageSize") ?? undefined,

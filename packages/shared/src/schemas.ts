@@ -139,6 +139,8 @@ export const opsQueueQuerySchema = z.object({
   status: requestStatusSchema.optional(),
   governorate: governorateSchema.optional(),
   serviceType: serviceTypeSchema.optional(),
+  providerType: providerTypeSchema.optional(),
+  specialty: specialtySchema.optional(),
   q: z.string().trim().max(100).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(25),

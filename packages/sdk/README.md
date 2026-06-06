@@ -50,6 +50,41 @@ await hp.requests.cancel(req.id);
 The SDK signs every request with HMAC-SHA256 internally — you never build
 signatures yourself.
 
+## Service matching (provider directory)
+
+Match against the provider directory along
+`governorate → area → providerType → specialty → provider`:
+
+```ts
+const { items } = await hp.providers.search({
+  governorate: "Cairo",
+  providerType: "labs",     // 8 types; preferred over the legacy serviceType (4)
+  specialty: "labs",
+  q: "Alfa",
+});
+
+await hp.requests.create({
+  providerType: "labs",
+  specialty: "labs",
+  location: { governorate: "Cairo", area: "Nasr City" },
+  providerId: items[0]?.id,
+  nationalId: "30101010123451",
+  mobile: "+201001234567",
+  memberNameAr: "أحمد منصور",
+  memberNameEn: "Ahmed Mansour",
+});
+```
+
+## Bilingual labels (Arabic / English)
+
+The SDK re-exports the bilingual taxonomy so you can render it in either language:
+
+```ts
+import { PROVIDER_TYPE_LABELS, SPECIALTY_LABELS, GOVERNORATE_LABELS, label } from "@healthpay/quote-sdk";
+label(PROVIDER_TYPE_LABELS["labs"], "ar");      // "معامل تحاليل"
+label(SPECIALTY_LABELS["dentistry"], "en");     // "Dentistry"
+```
+
 ## Typed errors
 
 ```ts

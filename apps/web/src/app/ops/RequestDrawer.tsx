@@ -3,17 +3,36 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   SERVICE_TYPE_LABELS,
+  PROVIDER_TYPE_LABELS,
+  SPECIALTY_LABELS,
+  GENDER_LABELS,
+  MARITAL_STATUS_LABELS,
   MIN_DISCOUNT_PCT,
   MAX_DISCOUNT_PCT,
+  type ProviderType,
+  type Specialty,
+  type Gender,
+  type MaritalStatus,
 } from "@healthpay/shared";
+import { useI18n } from "@/components/LocaleProvider";
 
 interface OptionDraft {
+  providerId?: string;
   providerName: string;
   providerAddress: string;
   serviceDescription: string;
   listPrice: string;
   discountedPrice: string;
   validityNote: string;
+}
+
+interface DirectoryProvider {
+  id: string;
+  name: string;
+  area: string | null;
+  address: string | null;
+  providerType: ProviderType | null;
+  specialty: Specialty | null;
 }
 
 const emptyDraft: OptionDraft = {
@@ -34,11 +53,14 @@ export default function RequestDrawer({
   onClose: () => void;
   onChanged: () => void;
 }) {
+  const { t, L, dir } = useI18n();
   const [detail, setDetail] = useState<any>(null);
   const [revealing, setRevealing] = useState(false);
   const [drafts, setDrafts] = useState<OptionDraft[]>([{ ...emptyDraft }]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [providerQuery, setProviderQuery] = useState("");
+  const [providerResults, setProviderResults] = useState<DirectoryProvider[]>([]);
 
   const load = useCallback(
     async (reveal = false) => {
@@ -54,6 +76,27 @@ export default function RequestDrawer({
   useEffect(() => {
     void load(false);
   }, [load]);
+
+  // Auto-suggest matching directory providers (governorate + type + specialty).
+  const loadProviders = useCallback(
+    async (extraQ = "") => {
+      if (!detail) return;
+      const p = new URLSearchParams({ pageSize: "20" });
+      if (detail.governorate) p.set("governorate", detail.governorate);
+      if (detail.providerType) p.set("providerType", detail.providerType);
+      if (detail.specialty) p.set("specialty", detail.specialty);
+      if (extraQ) p.set("q", extraQ);
+      const res = await fetch(`/api/v1/ops/providers?${p.toString()}`, { cache: "no-store" });
+      if (res.ok) setProviderResults((await res.json()).items ?? []);
+    },
+    [detail],
+  );
+
+  useEffect(() => {
+    if (detail && (detail.status === "pending_quote" || detail.status === "quoted")) {
+      void loadProviders();
+    }
+  }, [detail, loadProviders]);
 
   async function reveal() {
     setRevealing(true);
@@ -71,11 +114,28 @@ export default function RequestDrawer({
     return Math.round(((l - p) / l) * 10000) / 100;
   }
 
+  /** Add a draft prefilled from a directory provider. */
+  function useProvider(p: DirectoryProvider) {
+    setDrafts((ds) => {
+      const draft: OptionDraft = {
+        ...emptyDraft,
+        providerId: p.id,
+        providerName: p.name,
+        providerAddress: p.address ?? "",
+      };
+      // Replace the first fully-empty draft, else append.
+      const idx = ds.findIndex((d) => !d.providerName && !d.serviceDescription && !d.listPrice);
+      if (idx >= 0) return ds.map((d, i) => (i === idx ? draft : d));
+      return [...ds, draft];
+    });
+  }
+
   async function submitOptions() {
     setError(null);
     const options = drafts
       .filter((d) => d.providerName && d.serviceDescription && d.listPrice && d.discountedPrice)
       .map((d) => ({
+        providerId: d.providerId,
         providerName: d.providerName,
         providerAddress: d.providerAddress || undefined,
         serviceDescription: d.serviceDescription,
@@ -84,7 +144,7 @@ export default function RequestDrawer({
         validityNote: d.validityNote || undefined,
       }));
     if (options.length === 0) {
-      setError("Add at least one complete option.");
+      setError(t("drawer.enterPrices"));
       return;
     }
     setSaving(true);
@@ -116,25 +176,26 @@ export default function RequestDrawer({
 
   if (!detail) {
     return (
-      <Shell onClose={onClose}>
-        <p className="p-6 text-navy-500">Loading…</p>
+      <Shell onClose={onClose} dir={dir}>
+        <p className="p-6 text-navy-500">{t("loading")}</p>
       </Shell>
     );
   }
 
   const canQuote = detail.status === "pending_quote" || detail.status === "quoted";
   const canRemove = detail.status === "quoted";
+  const serviceLabel = detail.providerType
+    ? L(PROVIDER_TYPE_LABELS[detail.providerType as ProviderType])
+    : L(SERVICE_TYPE_LABELS[detail.serviceType as keyof typeof SERVICE_TYPE_LABELS]);
 
   return (
-    <Shell onClose={onClose}>
+    <Shell onClose={onClose} dir={dir}>
       <div className="flex items-center justify-between border-b border-navy-100 px-6 py-4">
         <div>
-          <h2 className="text-lg font-semibold text-navy-900">
-            {SERVICE_TYPE_LABELS[detail.serviceType as keyof typeof SERVICE_TYPE_LABELS]?.en}
-          </h2>
+          <h2 className="text-lg font-semibold text-navy-900">{serviceLabel}</h2>
           <p className="text-sm text-navy-500">
-            {detail.governorate}
-            {detail.city ? ` · ${detail.city}` : ""} · {detail.status.replace("_", " ")}
+            {L(SPECIALTY_LABELS[detail.specialty as Specialty] ?? { en: "", ar: "" })}
+            {detail.area ? ` · ${detail.area}` : ""}
           </p>
         </div>
         <button onClick={onClose} className="text-navy-400 hover:text-navy-900">
@@ -145,39 +206,57 @@ export default function RequestDrawer({
       <div className="space-y-6 overflow-y-auto px-6 py-5">
         {/* Meta */}
         <section className="grid grid-cols-2 gap-3 text-sm">
-          <Field label="Partner" value={detail.partner?.name ?? "—"} />
-          <Field label="Partner ref" value={detail.partnerReference ?? "—"} />
-          <Field label="National ID (last 4)" value={`••• ${detail.nationalIdLast4}`} />
-          <Field label="Expires" value={new Date(detail.quoteExpiresAt).toLocaleString()} />
-          {detail.note && <Field label="Note" value={detail.note} className="col-span-2" />}
+          <Field label={t("drawer.partner")} value={detail.partner?.name ?? "—"} />
+          <Field label={t("drawer.partnerRef")} value={detail.partnerReference ?? "—"} />
+          <Field label={t("drawer.specialty")} value={detail.specialty ? L(SPECIALTY_LABELS[detail.specialty as Specialty]) : "—"} />
+          <Field label={t("drawer.area")} value={detail.area ?? "—"} />
+          <Field label={t("drawer.nid4")} value={`••• ${detail.nationalIdLast4}`} />
+          <Field label={t("drawer.expires")} value={new Date(detail.quoteExpiresAt).toLocaleString()} />
+          {detail.note && <Field label={t("drawer.note")} value={detail.note} className="col-span-2" />}
+        </section>
+
+        {/* Member */}
+        <section className="rounded-lg border border-navy-100 p-4">
+          <h3 className="mb-2 text-sm font-semibold text-navy-800">{t("drawer.member")}</h3>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <Field label="الاسم" value={detail.memberNameAr ?? "—"} />
+            <Field label="Name" value={detail.memberNameEn ?? "—"} />
+            <Field label={t("drawer.company")} value={detail.company ?? "—"} />
+            <Field
+              label={t("drawer.gender")}
+              value={detail.gender ? L(GENDER_LABELS[detail.gender as Gender]) : "—"}
+            />
+            <Field
+              label={t("drawer.maritalStatus")}
+              value={detail.maritalStatus ? L(MARITAL_STATUS_LABELS[detail.maritalStatus as MaritalStatus]) : "—"}
+            />
+          </div>
         </section>
 
         {/* PII reveal */}
         <section className="rounded-lg border border-navy-100 bg-navy-50/50 p-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-navy-800">Contact details (PII)</h3>
+            <h3 className="text-sm font-semibold text-navy-800">{t("drawer.contactPii")}</h3>
             {!detail.revealed && (
               <button
                 onClick={reveal}
                 disabled={revealing}
                 className="rounded bg-navy-900 px-3 py-1 text-xs font-medium text-white hover:bg-navy-800"
               >
-                {revealing ? "Revealing…" : "Reveal (audited)"}
+                {revealing ? t("drawer.revealing") : t("drawer.reveal")}
               </button>
             )}
           </div>
           <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
-            <Field label="Mobile" value={detail.pii?.mobile ?? "—"} mono />
+            <Field label={t("drawer.mobile")} value={detail.pii?.mobile ?? "—"} mono />
             <Field
-              label="National ID"
+              label={t("drawer.nationalId")}
               value={detail.revealed ? detail.pii?.nationalId : `••••••••• ${detail.nationalIdLast4}`}
               mono
             />
           </div>
           {detail.revealed && (
-            <p className="mt-2 text-xs text-gold-500">
-              This reveal has been recorded in the audit log.
-            </p>
+            <p className="mt-2 text-xs text-gold-500">{t("drawer.revealNote")}</p>
           )}
         </section>
 
@@ -185,7 +264,7 @@ export default function RequestDrawer({
         {detail.options?.length > 0 && (
           <section>
             <h3 className="mb-2 text-sm font-semibold text-navy-800">
-              Pricing options ({detail.options.length})
+              {t("drawer.options")} ({detail.options.length})
             </h3>
             <div className="space-y-2">
               {detail.options.map((o: any) => (
@@ -202,7 +281,7 @@ export default function RequestDrawer({
                       <p className="font-medium text-navy-900">{o.providerName}</p>
                       <p className="text-navy-600">{o.serviceDescription}</p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-end">
                       <p className="text-navy-400 line-through">{o.listPrice} {o.currency}</p>
                       <p className="font-semibold text-teal-600">
                         {o.discountedPrice} {o.currency}{" "}
@@ -211,16 +290,59 @@ export default function RequestDrawer({
                     </div>
                   </div>
                   {o.id === detail.selectedOptionId && (
-                    <p className="mt-1 text-xs font-medium text-emerald-700">✓ Selected by user</p>
+                    <p className="mt-1 text-xs font-medium text-emerald-700">{t("drawer.selectedByUser")}</p>
                   )}
                   {canRemove && o.id !== detail.selectedOptionId && (
                     <button
                       onClick={() => removeOption(o.id)}
                       className="mt-2 text-xs text-red-600 hover:underline"
                     >
-                      Remove
+                      {t("remove")}
                     </button>
                   )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Provider picker (directory matching) */}
+        {canQuote && (
+          <section className="rounded-lg border border-teal-500/30 bg-teal-50/40 p-4">
+            <h3 className="mb-2 text-sm font-semibold text-navy-800">{t("drawer.findProvider")}</h3>
+            <div className="flex gap-2">
+              <input
+                value={providerQuery}
+                onChange={(e) => setProviderQuery(e.target.value)}
+                placeholder={t("drawer.searchProviders")}
+                className="grow rounded-md border border-navy-100 px-2.5 py-1.5 text-sm"
+              />
+              <button
+                onClick={() => void loadProviders(providerQuery)}
+                className="rounded bg-navy-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-navy-800"
+              >
+                {t("apply")}
+              </button>
+            </div>
+            <div className="mt-2 max-h-44 space-y-1 overflow-y-auto">
+              {providerResults.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between rounded border border-navy-100 bg-white px-2.5 py-1.5 text-sm"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-navy-900">{p.name}</p>
+                    <p className="truncate text-xs text-navy-500">
+                      {p.area ?? ""}
+                      {p.specialty ? ` · ${L(SPECIALTY_LABELS[p.specialty])}` : ""}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => useProvider(p)}
+                    className="ms-2 shrink-0 rounded bg-teal-500 px-2 py-1 text-xs font-medium text-white hover:bg-teal-600"
+                  >
+                    {t("drawer.use")}
+                  </button>
                 </div>
               ))}
             </div>
@@ -230,7 +352,7 @@ export default function RequestDrawer({
         {/* Quote builder */}
         {canQuote && (
           <section>
-            <h3 className="mb-2 text-sm font-semibold text-navy-800">Add pricing options</h3>
+            <h3 className="mb-2 text-sm font-semibold text-navy-800">{t("drawer.addOptions")}</h3>
             {error && (
               <div className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
             )}
@@ -243,36 +365,36 @@ export default function RequestDrawer({
                   <div key={i} className="rounded-lg border border-navy-100 p-3">
                     <div className="grid grid-cols-2 gap-2">
                       <Input
-                        placeholder="Provider name"
+                        placeholder={t("drawer.providerName")}
                         value={d.providerName}
                         onChange={(v) => updateDraft(setDrafts, i, "providerName", v)}
                       />
                       <Input
-                        placeholder="Address (optional)"
+                        placeholder={t("drawer.address")}
                         value={d.providerAddress}
                         onChange={(v) => updateDraft(setDrafts, i, "providerAddress", v)}
                       />
                       <Input
                         className="col-span-2"
-                        placeholder="Service description"
+                        placeholder={t("drawer.serviceDesc")}
                         value={d.serviceDescription}
                         onChange={(v) => updateDraft(setDrafts, i, "serviceDescription", v)}
                       />
                       <Input
-                        placeholder="List price"
+                        placeholder={t("drawer.listPrice")}
                         value={d.listPrice}
                         type="number"
                         onChange={(v) => updateDraft(setDrafts, i, "listPrice", v)}
                       />
                       <Input
-                        placeholder="Discounted price"
+                        placeholder={t("drawer.discountedPrice")}
                         value={d.discountedPrice}
                         type="number"
                         onChange={(v) => updateDraft(setDrafts, i, "discountedPrice", v)}
                       />
                       <Input
                         className="col-span-2"
-                        placeholder="Validity note (optional)"
+                        placeholder={t("drawer.validityNote")}
                         value={d.validityNote}
                         onChange={(v) => updateDraft(setDrafts, i, "validityNote", v)}
                       />
@@ -280,15 +402,15 @@ export default function RequestDrawer({
                     <div className="mt-2 flex items-center justify-between text-xs">
                       <span className={outOfBand ? "text-red-600" : "text-teal-600"}>
                         {pct === null
-                          ? "Enter prices to compute discount"
-                          : `Discount: ${pct}%${outOfBand ? ` (must be ${MIN_DISCOUNT_PCT}–${MAX_DISCOUNT_PCT}%)` : ""}`}
+                          ? t("drawer.enterPrices")
+                          : `${t("drawer.discount")}: ${pct}%${outOfBand ? ` (${MIN_DISCOUNT_PCT}–${MAX_DISCOUNT_PCT}%)` : ""}`}
                       </span>
                       {drafts.length > 1 && (
                         <button
                           onClick={() => setDrafts((ds) => ds.filter((_, j) => j !== i))}
                           className="text-red-600 hover:underline"
                         >
-                          Remove draft
+                          {t("drawer.removeDraft")}
                         </button>
                       )}
                     </div>
@@ -301,14 +423,18 @@ export default function RequestDrawer({
                 onClick={() => setDrafts((ds) => [...ds, { ...emptyDraft }])}
                 className="rounded border border-navy-200 px-3 py-1.5 text-sm font-medium text-navy-800 hover:bg-navy-50"
               >
-                + Add another
+                {t("drawer.addAnother")}
               </button>
               <button
                 onClick={submitOptions}
                 disabled={saving}
                 className="rounded bg-teal-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-teal-600 disabled:opacity-60"
               >
-                {saving ? "Saving…" : detail.status === "pending_quote" ? "Send quote" : "Add options"}
+                {saving
+                  ? t("drawer.saving")
+                  : detail.status === "pending_quote"
+                    ? t("drawer.sendQuote")
+                    : t("drawer.addMore")}
               </button>
             </div>
           </section>
@@ -327,9 +453,17 @@ function updateDraft(
   setDrafts((ds) => ds.map((d, j) => (j === index ? { ...d, [key]: value } : d)));
 }
 
-function Shell({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+function Shell({
+  children,
+  onClose,
+  dir,
+}: {
+  children: React.ReactNode;
+  onClose: () => void;
+  dir: "rtl" | "ltr";
+}) {
   return (
-    <div className="fixed inset-0 z-20 flex justify-end">
+    <div className="fixed inset-0 z-20 flex" style={{ justifyContent: dir === "rtl" ? "flex-start" : "flex-end" }}>
       <div className="absolute inset-0 bg-navy-900/30" onClick={onClose} />
       <div className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-xl">
         {children}

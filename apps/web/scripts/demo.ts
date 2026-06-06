@@ -79,13 +79,18 @@ async function main() {
       .returning();
   }
 
-  step(1, "Partner creates a request (SMS with quote link is dispatched)");
+  step(1, "Partner creates a request (provider-type + specialty + member fields)");
   const { request, quoteUrl } = await createServiceRequest(db, partner!, {
-    serviceType: "lab_investigation",
+    providerType: "labs",
+    specialty: "labs",
     governorate: "Cairo",
-    city: "Nasr City",
+    area: "Nasr City",
     nationalId: "30101010123451",
     mobile: "+201001234567",
+    memberNameEn: "Ahmed Mansour",
+    memberNameAr: "أحمد منصور",
+    company: "Acme Corp",
+    maritalStatus: "married",
     partnerReference: "demo_order_1",
   } as never);
   const token = quoteUrl.split("/quote/")[1]!;

@@ -2,11 +2,28 @@
 
 import { and, eq, or, ilike, asc, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
-import { providerSearchQuerySchema } from "@healthpay/shared";
+import { providerSearchQuerySchema, ValidationError } from "@healthpay/shared";
 import { type Database } from "@healthpay/db";
 import { providers } from "@healthpay/db/schema";
 
 export type ProviderSearchQuery = z.output<typeof providerSearchQuerySchema>;
+
+/** Parse + validate provider-search params from a request URL. */
+export function parseProviderQuery(req: Request): ProviderSearchQuery {
+  const url = new URL(req.url);
+  const parsed = providerSearchQuerySchema.safeParse({
+    governorate: url.searchParams.get("governorate") ?? undefined,
+    area: url.searchParams.get("area") ?? undefined,
+    providerType:
+      url.searchParams.get("providerType") ?? url.searchParams.get("provider_type") ?? undefined,
+    specialty: url.searchParams.get("specialty") ?? undefined,
+    q: url.searchParams.get("q") ?? undefined,
+    page: url.searchParams.get("page") ?? undefined,
+    pageSize: url.searchParams.get("pageSize") ?? undefined,
+  });
+  if (!parsed.success) throw new ValidationError("Invalid query.", parsed.error.flatten());
+  return parsed.data;
+}
 
 export async function searchProviders(db: Database, q: ProviderSearchQuery) {
   const filters: SQL[] = [];

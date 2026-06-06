@@ -5,18 +5,26 @@ import { useRouter } from "next/navigation";
 import type { OpsSession } from "@/lib/ops-auth";
 import {
   GOVERNORATES,
-  SERVICE_TYPES,
+  GOVERNORATE_LABELS,
+  PROVIDER_TYPES,
+  PROVIDER_TYPE_LABELS,
   SERVICE_TYPE_LABELS,
   REQUEST_STATUSES,
+  type ProviderType,
   type RequestStatus,
 } from "@healthpay/shared";
+import { useI18n, LanguageToggle } from "@/components/LocaleProvider";
+import { STATUS_LABELS } from "@/lib/i18n";
 import RequestDrawer from "./RequestDrawer";
 
 export interface QueueItem {
   id: string;
   status: RequestStatus;
   serviceType: keyof typeof SERVICE_TYPE_LABELS;
-  governorate: string;
+  providerType: ProviderType | null;
+  specialty: string | null;
+  governorate: keyof typeof GOVERNORATE_LABELS;
+  area: string | null;
   city: string | null;
   mobileE164: string;
   nationalIdLast4: string;
@@ -50,6 +58,7 @@ function ageLabel(iso: string) {
 
 export default function Dashboard({ user }: { user: OpsSession }) {
   const router = useRouter();
+  const { t, L, locale } = useI18n();
   const [items, setItems] = useState<QueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<RequestStatus | "">("");
@@ -64,7 +73,7 @@ export default function Dashboard({ user }: { user: OpsSession }) {
     const p = new URLSearchParams();
     if (status) p.set("status", status);
     if (governorate) p.set("governorate", governorate);
-    if (serviceType) p.set("serviceType", serviceType);
+    if (serviceType) p.set("providerType", serviceType);
     if (q) p.set("q", q);
     p.set("pageSize", "100");
     return p.toString();
@@ -139,24 +148,25 @@ export default function Dashboard({ user }: { user: OpsSession }) {
           <span className="rounded bg-teal-500 px-2 py-1 text-xs font-semibold uppercase tracking-wide">
             HealthPay
           </span>
-          <h1 className="text-lg font-semibold">Operations</h1>
+          <h1 className="text-lg font-semibold">{t("ops.title")}</h1>
           <span
-            className={`ml-2 inline-flex items-center gap-1 text-xs ${
+            className={`mx-2 inline-flex items-center gap-1 text-xs ${
               connected ? "text-teal-100" : "text-gold-400"
             }`}
           >
             <span
               className={`h-2 w-2 rounded-full ${connected ? "bg-teal-400" : "bg-gold-400"}`}
             />
-            {connected ? "live" : "polling"}
+            {connected ? t("ops.live") : t("ops.polling")}
           </span>
         </div>
         <div className="flex items-center gap-4 text-sm">
+          <LanguageToggle className="text-white" />
           <span className="text-navy-100">
             {user.name} · {user.role}
           </span>
           <button onClick={logout} className="rounded bg-navy-800 px-3 py-1.5 hover:bg-navy-700">
-            Sign out
+            {t("ops.signOut")}
           </button>
         </div>
       </header>
@@ -169,7 +179,7 @@ export default function Dashboard({ user }: { user: OpsSession }) {
           }}
           className="block w-full bg-teal-500 py-1.5 text-center text-sm font-medium text-white"
         >
-          {liveCount} new request{liveCount > 1 ? "s" : ""} arrived — refresh
+          {liveCount} {t("ops.newArrived")}
         </button>
       )}
 
@@ -181,10 +191,10 @@ export default function Dashboard({ user }: { user: OpsSession }) {
             onChange={(e) => setStatus(e.target.value as RequestStatus | "")}
             className="rounded-md border border-navy-100 bg-white px-3 py-1.5 text-sm"
           >
-            <option value="">All statuses</option>
+            <option value="">{t("ops.allStatuses")}</option>
             {REQUEST_STATUSES.map((s) => (
               <option key={s} value={s}>
-                {s.replace("_", " ")} ({counts[s] ?? 0})
+                {(locale === "ar" ? STATUS_LABELS[s].ar : STATUS_LABELS[s].en)} ({counts[s] ?? 0})
               </option>
             ))}
           </select>
@@ -193,10 +203,10 @@ export default function Dashboard({ user }: { user: OpsSession }) {
             onChange={(e) => setGovernorate(e.target.value)}
             className="rounded-md border border-navy-100 bg-white px-3 py-1.5 text-sm"
           >
-            <option value="">All governorates</option>
+            <option value="">{t("ops.allGovernorates")}</option>
             {GOVERNORATES.map((g) => (
               <option key={g} value={g}>
-                {g}
+                {L(GOVERNORATE_LABELS[g])}
               </option>
             ))}
           </select>
@@ -205,24 +215,24 @@ export default function Dashboard({ user }: { user: OpsSession }) {
             onChange={(e) => setServiceType(e.target.value)}
             className="rounded-md border border-navy-100 bg-white px-3 py-1.5 text-sm"
           >
-            <option value="">All services</option>
-            {SERVICE_TYPES.map((s) => (
+            <option value="">{t("ops.allServices")}</option>
+            {PROVIDER_TYPES.map((s) => (
               <option key={s} value={s}>
-                {SERVICE_TYPE_LABELS[s].en}
+                {L(PROVIDER_TYPE_LABELS[s])}
               </option>
             ))}
           </select>
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search mobile / partner ref…"
+            placeholder={t("ops.search")}
             className="grow rounded-md border border-navy-100 bg-white px-3 py-1.5 text-sm"
           />
           <button
             onClick={() => void load()}
             className="rounded-md bg-navy-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-navy-800"
           >
-            Apply
+            {t("apply")}
           </button>
         </div>
 
@@ -231,25 +241,25 @@ export default function Dashboard({ user }: { user: OpsSession }) {
           <table className="w-full text-left text-sm">
             <thead className="bg-navy-50 text-xs uppercase tracking-wide text-navy-700">
               <tr>
-                <th className="px-4 py-2">Status</th>
-                <th className="px-4 py-2">Service</th>
-                <th className="px-4 py-2">Location</th>
-                <th className="px-4 py-2">Mobile</th>
-                <th className="px-4 py-2">Partner</th>
-                <th className="px-4 py-2">Age</th>
+                <th className="px-4 py-2 text-start">{t("ops.col.status")}</th>
+                <th className="px-4 py-2 text-start">{t("ops.col.service")}</th>
+                <th className="px-4 py-2 text-start">{t("ops.col.location")}</th>
+                <th className="px-4 py-2 text-start">{t("ops.col.mobile")}</th>
+                <th className="px-4 py-2 text-start">{t("ops.col.partner")}</th>
+                <th className="px-4 py-2 text-start">{t("ops.col.age")}</th>
               </tr>
             </thead>
             <tbody>
               {loading && items.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-navy-500">
-                    Loading…
+                    {t("loading")}
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-navy-500">
-                    No requests match these filters.
+                    {t("ops.noResults")}
                   </td>
                 </tr>
               ) : (
@@ -263,13 +273,17 @@ export default function Dashboard({ user }: { user: OpsSession }) {
                       <span
                         className={`inline-block rounded border px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[it.status]}`}
                       >
-                        {it.status.replace("_", " ")}
+                        {L(STATUS_LABELS[it.status])}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5">{SERVICE_TYPE_LABELS[it.serviceType]?.en}</td>
                     <td className="px-4 py-2.5">
-                      {it.governorate}
-                      {it.city ? ` · ${it.city}` : ""}
+                      {it.providerType
+                        ? L(PROVIDER_TYPE_LABELS[it.providerType])
+                        : L(SERVICE_TYPE_LABELS[it.serviceType])}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {L(GOVERNORATE_LABELS[it.governorate])}
+                      {it.area ? ` · ${it.area}` : it.city ? ` · ${it.city}` : ""}
                     </td>
                     <td className="px-4 py-2.5 font-mono text-xs">{maskLocal(it.mobileE164)}</td>
                     <td className="px-4 py-2.5">
