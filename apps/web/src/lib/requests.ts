@@ -4,6 +4,9 @@ import { and, eq, desc } from "drizzle-orm";
 import {
   computeDiscountPct,
   validatePricing,
+  validateNationalId,
+  serviceTypeToProviderType,
+  providerTypeToServiceType,
   ValidationError,
   NotFoundError,
   ConflictError,
@@ -35,19 +38,43 @@ export async function createServiceRequest(
 ): Promise<CreatedRequest> {
   const { token, tokenHash, expiresAt } = createQuoteToken();
 
+  // Resolve the matching axes: providerType is primary; serviceType is the
+  // back-compat alias. Derive whichever is missing so both stay consistent.
+  const providerType =
+    input.providerType ??
+    (input.serviceType ? serviceTypeToProviderType(input.serviceType) : undefined);
+  const serviceType =
+    input.serviceType ?? (providerType ? providerTypeToServiceType(providerType) : undefined);
+  if (!serviceType || !providerType) {
+    throw new ValidationError("Provide either `providerType` or `serviceType`.");
+  }
+
+  // Gender can be supplied or derived from the validated national ID.
+  const nid = validateNationalId(input.nationalId);
+  const gender = input.gender ?? (nid.ok ? nid.parsed.gender : undefined);
+
   const [request] = await db
     .insert(serviceRequests)
     .values({
       partnerId: partner.id,
-      serviceType: input.serviceType,
+      serviceType,
+      providerType,
+      specialty: input.specialty,
       governorate: input.governorate,
+      area: input.area,
       city: input.city,
       lat: input.lat,
       lng: input.lng,
+      providerId: input.providerId,
       nationalIdEncrypted: encryptPii(input.nationalId),
       nationalIdLast4: input.nationalId.slice(-4),
       mobileEncrypted: encryptPii(input.mobile),
       mobileE164: input.mobile,
+      memberNameEn: input.memberNameEn,
+      memberNameAr: input.memberNameAr,
+      company: input.company,
+      gender,
+      maritalStatus: input.maritalStatus,
       status: "pending_quote",
       partnerReference: input.partnerReference,
       note: input.note,
@@ -141,6 +168,7 @@ export async function attachOptions(
     if (!res.ok) throw new ValidationError(res.reason);
     return {
       requestId: request.id,
+      providerId: o.providerId,
       providerName: o.providerName,
       providerAddress: o.providerAddress,
       serviceDescription: o.serviceDescription,

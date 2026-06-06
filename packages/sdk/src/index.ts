@@ -22,6 +22,8 @@ import type {
   CreateRequestInput,
   CreatedRequest,
   ServiceRequest,
+  ProviderSearchParams,
+  ProviderSearchResult,
 } from "./types.js";
 
 export * from "./types.js";
@@ -37,6 +39,7 @@ export class HealthPay {
   private readonly timeoutMs: number;
 
   readonly requests: RequestsResource;
+  readonly providers: ProvidersResource;
   readonly webhooks: WebhooksResource;
 
   constructor(opts: ClientOptions) {
@@ -52,6 +55,7 @@ export class HealthPay {
     this.timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT;
 
     this.requests = new RequestsResource(this);
+    this.providers = new ProvidersResource(this);
     this.webhooks = new WebhooksResource();
   }
 
@@ -109,13 +113,22 @@ class RequestsResource {
   /** Create a service request. Returns the id, status, quote URL and expiry. */
   async create(input: CreateRequestInput): Promise<CreatedRequest> {
     const payload = {
+      providerType: input.providerType,
       serviceType: input.serviceType,
+      specialty: input.specialty,
       governorate: input.location.governorate,
+      area: input.location.area,
       city: input.location.city,
       lat: input.location.lat,
       lng: input.location.lng,
+      providerId: input.providerId,
       nationalId: input.nationalId,
       mobile: input.mobile,
+      memberNameEn: input.memberNameEn,
+      memberNameAr: input.memberNameAr,
+      company: input.company,
+      gender: input.gender,
+      maritalStatus: input.maritalStatus,
       partnerReference: input.partnerReference,
       note: input.note,
     };
@@ -181,6 +194,20 @@ class RequestsResource {
       stopped = true;
       clearTimeout(timer);
     };
+  }
+}
+
+class ProvidersResource {
+  constructor(private readonly client: HealthPay) {}
+
+  /** Search the provider directory for service matching. */
+  search(params: ProviderSearchParams = {}): Promise<ProviderSearchResult> {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+      if (v !== undefined && v !== null && v !== "") qs.set(k, String(v));
+    }
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return this.client.request<ProviderSearchResult>("GET", `/api/v1/providers${suffix}`);
   }
 }
 
