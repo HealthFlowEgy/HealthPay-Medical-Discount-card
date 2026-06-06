@@ -29,12 +29,15 @@ docs/         # api.md, integration.md                                 (upcoming
 | Milestone | Scope | State |
 | --- | --- | --- |
 | 1 | Monorepo scaffold, `db` (schema + migrations + seed), `shared` validators + tests | ✅ done |
-| 2 | Partner REST API (auth/HMAC, encryption, audit) | ⏳ pending review |
-| 3 | Ops auth + dashboard live queue (SSE) + quote builder | ⏳ |
-| 4 | Hosted tokenized quote page + confirm + SMS provider | ⏳ |
-| 5 | Webhooks (delivery + retries) + SSE on transitions | ⏳ |
-| 6 | `@healthpay/quote-sdk` (+ embed helper) + docs | ⏳ |
-| 7 | Tests, seed/demo script, deploy notes (Vercel + Neon) | ⏳ |
+| 2 | Partner REST API (auth/HMAC, encryption, audit) | ✅ done |
+| 3 | Ops auth + dashboard live queue (SSE) + quote builder | ✅ done |
+| 4 | Hosted tokenized quote page + confirm + SMS provider | ✅ done |
+| 5 | Webhooks (delivery + retries) + SSE on transitions | ✅ done |
+| 6 | `@healthpay/quote-sdk` (+ embed helper) + docs | ✅ done |
+| 7 | Tests, seed/demo script, deploy notes (Vercel + Neon) | ✅ done |
+
+Docs: [`docs/api.md`](docs/api.md) · [`docs/integration.md`](docs/integration.md) ·
+[`docs/openapi.json`](docs/openapi.json) · SDK: [`packages/sdk/README.md`](packages/sdk/README.md)
 
 ## Develop
 
@@ -52,6 +55,48 @@ Copy `.env.example` to `.env` and fill in secrets. Generate a PII key with:
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
+
+## End-to-end demo
+
+With `DATABASE_URL` + `PII_ENCRYPTION_KEY` set, run the full happy path
+(create → ops attaches 3 options → hosted quote → confirm → signed webhooks):
+
+```bash
+pnpm db:migrate          # once
+pnpm --filter @healthpay/web demo
+# or: pnpm demo          # seeds first, then runs the walkthrough
+```
+
+It starts an in-process webhook receiver and prints each lifecycle step plus the
+delivered `request.quoted` / `request.confirmed` webhooks (with signature checks).
+
+## Running the apps
+
+```bash
+pnpm db:migrate && pnpm db:seed   # prints demo partner creds + ops logins
+pnpm dev                          # Next.js on http://localhost:3000
+#   /              landing
+#   /ops           operations dashboard (login: admin@healthpay.test / ChangeMe123!)
+#   /quote/:token  hosted quote page (token from the SMS log / quote_url)
+```
+
+## Deploying (Vercel + Neon)
+
+1. **Database** — create a Neon Postgres project; copy its pooled connection
+   string into `DATABASE_URL`. Run `pnpm db:migrate` against it (CI or locally).
+2. **Vercel project** — import the repo, set the project root to `apps/web`.
+   Vercel builds with `pnpm` workspaces automatically.
+3. **Environment variables** (Vercel → Settings → Environment Variables) — set
+   everything from `.env.example`: `DATABASE_URL`, `PII_ENCRYPTION_KEY`,
+   `OPS_SESSION_SECRET`, `APP_BASE_URL` (your deployed URL), `SMS_PROVIDER` (+ the
+   chosen vendor's credentials), `PARTNER_ALLOWED_ORIGINS`, `CRON_SECRET`,
+   `RATE_LIMIT_PER_MINUTE`, `QUOTE_VALIDITY_HOURS`.
+4. **Cron** — `apps/web/vercel.json` registers a 5-minute cron that hits
+   `/api/v1/internal/webhooks/process` to drain webhook retries.
+5. **Scale notes** — the SSE bus and the rate limiter are per-instance (best
+   effort across serverless instances); the dashboard also polls as a fallback.
+   For global realtime/limits, swap `lib/events.ts` (e.g. Postgres LISTEN/NOTIFY)
+   and `lib/rate-limit.ts` (e.g. Upstash) — both are isolated behind one module.
 
 ## Security & compliance highlights
 

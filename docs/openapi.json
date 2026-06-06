@@ -1,0 +1,816 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "HealthPay Quote Engine API",
+    "version": "1.0.0",
+    "description": "Medical-discount pricing quotes. HealthPay is NOT insurance — every request is a quote-for-discount-pricing flow. No clinical data is collected."
+  },
+  "servers": [
+    {
+      "url": "https://quotes.healthpay.example"
+    },
+    {
+      "url": "http://localhost:3000"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "apiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-HP-Key"
+      },
+      "hmacTimestamp": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-HP-Timestamp"
+      },
+      "hmacSignature": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-HP-Signature",
+        "description": "hex HMAC-SHA256 over `${timestamp}.${rawBody}` with your API secret."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {}
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        }
+      },
+      "CreateRequest": {
+        "$ref": "#/definitions/CreateRequest",
+        "definitions": {
+          "CreateRequest": {
+            "type": "object",
+            "properties": {
+              "serviceType": {
+                "type": "string",
+                "enum": [
+                  "medical_clinic_visit",
+                  "dental_clinic_visit",
+                  "lab_investigation",
+                  "radiology_investigation"
+                ]
+              },
+              "governorate": {
+                "type": "string",
+                "enum": [
+                  "Cairo",
+                  "Giza",
+                  "Alexandria",
+                  "Dakahlia",
+                  "Red Sea",
+                  "Beheira",
+                  "Fayoum",
+                  "Gharbia",
+                  "Ismailia",
+                  "Menofia",
+                  "Minya",
+                  "Qalyubia",
+                  "New Valley",
+                  "Suez",
+                  "Aswan",
+                  "Assiut",
+                  "Beni Suef",
+                  "Port Said",
+                  "Damietta",
+                  "Sharqia",
+                  "South Sinai",
+                  "Kafr El Sheikh",
+                  "Matrouh",
+                  "Luxor",
+                  "Qena",
+                  "North Sinai",
+                  "Sohag"
+                ]
+              },
+              "city": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "lat": {
+                "type": "number",
+                "minimum": -90,
+                "maximum": 90
+              },
+              "lng": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              },
+              "nationalId": {
+                "type": "string"
+              },
+              "mobile": {
+                "type": "string"
+              },
+              "partnerReference": {
+                "type": "string",
+                "maxLength": 255
+              },
+              "note": {
+                "type": "string",
+                "maxLength": 1000
+              }
+            },
+            "required": [
+              "serviceType",
+              "governorate",
+              "nationalId",
+              "mobile"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "AttachOptions": {
+        "$ref": "#/definitions/AttachOptions",
+        "definitions": {
+          "AttachOptions": {
+            "type": "object",
+            "properties": {
+              "options": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "providerName": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "providerAddress": {
+                      "type": "string",
+                      "maxLength": 500
+                    },
+                    "serviceDescription": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 500
+                    },
+                    "listPrice": {
+                      "type": "number",
+                      "exclusiveMinimum": true,
+                      "minimum": 0
+                    },
+                    "discountedPrice": {
+                      "type": "number",
+                      "exclusiveMinimum": true,
+                      "minimum": 0
+                    },
+                    "currency": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 3,
+                      "default": "EGP"
+                    },
+                    "validityNote": {
+                      "type": "string",
+                      "maxLength": 500
+                    },
+                    "extraInfo": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "providerName",
+                    "serviceDescription",
+                    "listPrice",
+                    "discountedPrice"
+                  ],
+                  "additionalProperties": false
+                },
+                "minItems": 1,
+                "maxItems": 10
+              }
+            },
+            "required": [
+              "options"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "PricingOptionInput": {
+        "$ref": "#/definitions/PricingOptionInput",
+        "definitions": {
+          "PricingOptionInput": {
+            "type": "object",
+            "properties": {
+              "providerName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "providerAddress": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "serviceDescription": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "listPrice": {
+                "type": "number",
+                "exclusiveMinimum": true,
+                "minimum": 0
+              },
+              "discountedPrice": {
+                "type": "number",
+                "exclusiveMinimum": true,
+                "minimum": 0
+              },
+              "currency": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 3,
+                "default": "EGP"
+              },
+              "validityNote": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "extraInfo": {
+                "type": "object",
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "providerName",
+              "serviceDescription",
+              "listPrice",
+              "discountedPrice"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "Confirm": {
+        "$ref": "#/definitions/Confirm",
+        "definitions": {
+          "Confirm": {
+            "type": "object",
+            "properties": {
+              "optionId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "optionId"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/requests": {
+      "post": {
+        "summary": "Create a service request",
+        "security": [
+          {
+            "apiKey": [],
+            "hmacTimestamp": [],
+            "hmacSignature": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "quote_url": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "expires_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict / illegal state transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/requests/{id}": {
+      "get": {
+        "summary": "Get request status + options",
+        "security": [
+          {
+            "apiKey": [],
+            "hmacTimestamp": [],
+            "hmacSignature": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict / illegal state transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/requests/{id}/confirm": {
+      "post": {
+        "summary": "Confirm a selected option (via SDK)",
+        "security": [
+          {
+            "apiKey": [],
+            "hmacTimestamp": [],
+            "hmacSignature": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Confirm"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Confirmed"
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict / illegal state transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/requests/{id}/cancel": {
+      "post": {
+        "summary": "Cancel a request",
+        "security": [
+          {
+            "apiKey": [],
+            "hmacTimestamp": [],
+            "hmacSignature": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelled"
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict / illegal state transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quote/{token}": {
+      "get": {
+        "summary": "Hosted quote page data (token auth)",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quote/{token}/confirm": {
+      "post": {
+        "summary": "Confirm from the hosted page (token auth)",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Confirm"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Confirmed"
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict / illegal state transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ops/requests": {
+      "get": {
+        "summary": "Ops: filtered, paginated request queue (session auth)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ops/requests/{id}/options": {
+      "post": {
+        "summary": "Ops: attach one or more pricing options (session auth)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttachOptions"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Quoted"
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict / illegal state transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
