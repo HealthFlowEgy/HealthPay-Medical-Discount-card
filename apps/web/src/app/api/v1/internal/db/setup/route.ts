@@ -2,6 +2,7 @@ import {
   runEmbeddedMigrations,
   decodeEmbeddedProviders,
   seedAll,
+  ensureServiceCatalog,
 } from "@healthpay/db";
 import { getDb } from "@/lib/db";
 import { env } from "@/lib/env";
@@ -36,6 +37,7 @@ export async function POST(req: Request) {
     const db = getDb();
 
     const migrations = await runEmbeddedMigrations(db);
+    const catalogInserted = await ensureServiceCatalog(db);
 
     let seedResult: Record<string, unknown> | null = null;
     if (seed) {
@@ -49,7 +51,7 @@ export async function POST(req: Request) {
       };
     }
 
-    return json({ ok: true, migrations, seeded: seed, seedResult });
+    return json({ ok: true, migrations, catalogInserted, seeded: seed, seedResult });
   } catch (err) {
     return errorResponse(err);
   }

@@ -6,6 +6,7 @@
  */
 
 import { createHash, randomBytes } from "node:crypto";
+import { sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import {
   validateNationalId,
@@ -105,6 +106,19 @@ const SAMPLE_NAMES: Array<[string, string, string]> = [
   ["Omar Khaled", "عمر خالد", "Giza Pharma"],
   ["Laila Fouad", "ليلى فؤاد", "Suez Logistics"],
 ];
+
+/** Populate the fallback service catalog if empty (idempotent; preserves data). */
+export async function ensureServiceCatalog(db: Database): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(serviceCatalog);
+  if ((row?.count ?? 0) > 0) return 0;
+  const rows = Object.entries(SERVICE_CATALOG).flatMap(([providerType, names]) =>
+    names.map((name, i) => ({ providerType: providerType as ProviderType, name, sort: i })),
+  );
+  await db.insert(serviceCatalog).values(rows);
+  return rows.length;
+}
 
 /** Idempotent full seed: clears app tables, loads providers + demo data. */
 export async function seedAll(
