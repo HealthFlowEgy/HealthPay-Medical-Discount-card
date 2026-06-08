@@ -13,6 +13,21 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("mapDlrStatus", () => {
+  it("maps provider status strings to the enum", async () => {
+    const { mapDlrStatus } = await import("../sms/dispatch.js");
+    expect(mapDlrStatus("DELIVRD")).toBe("delivered");
+    expect(mapDlrStatus("delivered")).toBe("delivered");
+    expect(mapDlrStatus("UNDELIV")).toBe("undelivered");
+    expect(mapDlrStatus("REJECTD")).toBe("failed");
+    expect(mapDlrStatus("failed")).toBe("failed");
+    expect(mapDlrStatus("EXPIRED")).toBe("failed");
+    expect(mapDlrStatus("ENROUTE")).toBe("sent");
+    expect(mapDlrStatus("weird")).toBe("unknown");
+    expect(mapDlrStatus(undefined)).toBe("unknown");
+  });
+});
+
 describe("CEQUENS SMS provider", () => {
   it("POSTs to the CEQUENS endpoint with Bearer auth and the right body", async () => {
     const { getSmsProvider } = await loadCequens();

@@ -1,5 +1,7 @@
 import { normalizeEgyptianMobile, ValidationError } from "@healthpay/shared";
 import { getSmsProvider } from "@/lib/sms";
+import { dispatchSms } from "@/lib/sms/dispatch";
+import { getDb } from "@/lib/db";
 import { env } from "@/lib/env";
 import { json, errorResponse } from "@/lib/http";
 
@@ -26,20 +28,19 @@ export async function POST(req: Request) {
 
     const provider = getSmsProvider();
     const body = `هيلث باي: رسالة اختبار. HealthPay test message.`;
-    try {
-      await provider.send({ to: norm.e164, body });
-      return json({ ok: true, provider: provider.name, to: norm.e164 });
-    } catch (err) {
-      return json(
-        {
-          ok: false,
-          provider: provider.name,
-          to: norm.e164,
-          error: err instanceof Error ? err.message : String(err),
-        },
-        { status: 502 },
-      );
-    }
+    const result = await dispatchSms(getDb(), { to: norm.e164, body });
+    return json(
+      {
+        ok: result.status === "sent",
+        provider: provider.name,
+        to: norm.e164,
+        smsId: result.id,
+        status: result.status,
+        providerMessageId: result.providerMessageId,
+        error: result.error,
+      },
+      { status: result.status === "sent" ? 200 : 502 },
+    );
   } catch (err) {
     return errorResponse(err);
   }

@@ -15,6 +15,7 @@ import {
   type MaritalStatus,
 } from "@healthpay/shared";
 import { useI18n } from "@/components/LocaleProvider";
+import { SMS_STATUS_LABELS } from "@/lib/i18n";
 
 interface OptionDraft {
   providerId?: string;
@@ -212,6 +213,10 @@ export default function RequestDrawer({
           <Field label={t("drawer.area")} value={detail.area ?? "—"} />
           <Field label={t("drawer.nid4")} value={`••• ${detail.nationalIdLast4}`} />
           <Field label={t("drawer.expires")} value={new Date(detail.quoteExpiresAt).toLocaleString()} />
+          <Field
+            label={t("drawer.sms")}
+            value={detail.sms ? L(SMS_STATUS_LABELS[detail.sms.status] ?? SMS_STATUS_LABELS.unknown) : "—"}
+          />
           {detail.note && <Field label={t("drawer.note")} value={detail.note} className="col-span-2" />}
         </section>
 

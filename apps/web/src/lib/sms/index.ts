@@ -5,29 +5,62 @@
  *   - `console` (default): logs the message (dev)
  *   - `cequens`: real delivery via the CEQUENS SMS API
  *   - `twilio` / `smsmisr`: stub adapters
+ *
+ * Sends carry an optional `clientMessageId` + `dlrUrl` so providers can request
+ * delivery receipts, and return the provider's own message id when available.
  */
 
 import { env } from "../env.js";
 
-export interface SmsMessage {
+export interface SmsSendInput {
   to: string; // E.164
   body: string;
+  /** Our correlation id, echoed back by the provider's delivery receipt. */
+  clientMessageId?: string;
+  /** Callback URL the provider should POST/GET delivery receipts to. */
+  dlrUrl?: string;
+}
+
+export interface SmsSendResult {
+  providerMessageId?: string | null;
+  raw?: unknown;
 }
 
 export interface SmsProvider {
   readonly name: string;
-  send(message: SmsMessage): Promise<void>;
+  send(input: SmsSendInput): Promise<SmsSendResult>;
 }
 
-/** True if the text contains non-GSM (e.g. Arabic) characters → needs unicode. */
+/** True if the text contains non-ASCII (e.g. Arabic) characters → needs unicode. */
 function isUnicode(text: string): boolean {
   return /[^\x00-\x7F]/u.test(text);
 }
 
+/** Best-effort extraction of a message id from an unknown provider response. */
+function extractMessageId(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const seen = new Set<unknown>();
+  const stack: unknown[] = [payload];
+  const KEYS = ["messageId", "message_id", "cequensMessageId", "id", "msgId"];
+  while (stack.length) {
+    const cur = stack.pop();
+    if (!cur || typeof cur !== "object" || seen.has(cur)) continue;
+    seen.add(cur);
+    for (const [k, v] of Object.entries(cur as Record<string, unknown>)) {
+      if (KEYS.includes(k) && (typeof v === "string" || typeof v === "number")) {
+        return String(v);
+      }
+      if (v && typeof v === "object") stack.push(v);
+    }
+  }
+  return null;
+}
+
 class ConsoleSmsProvider implements SmsProvider {
   readonly name = "console";
-  async send(message: SmsMessage): Promise<void> {
-    console.log(`[sms:console] -> ${message.to}\n  ${message.body}`);
+  async send(input: SmsSendInput): Promise<SmsSendResult> {
+    console.log(`[sms:console] -> ${input.to}\n  ${input.body}`);
+    return { providerMessageId: input.clientMessageId ?? null };
   }
 }
 
@@ -37,61 +70,67 @@ class ConsoleSmsProvider implements SmsProvider {
  */
 class CequensSmsProvider implements SmsProvider {
   readonly name = "cequens";
-  async send(message: SmsMessage): Promise<void> {
+  async send(input: SmsSendInput): Promise<SmsSendResult> {
     const apiKey = process.env.CEQUENS_API_KEY;
     if (!apiKey) throw new Error("CEQUENS not configured (CEQUENS_API_KEY).");
     const url = process.env.CEQUENS_API_URL ?? "https://apis.cequens.com/sms/v1/messages";
     const senderName = process.env.CEQUENS_SENDER_NAME ?? env.smsSenderId;
     // CEQUENS expects the international MSISDN without a leading "+".
-    const recipients = message.to.replace(/^\+/, "");
+    const recipients = input.to.replace(/^\+/, "");
+
+    const body: Record<string, unknown> = {
+      messageText: input.body,
+      senderName,
+      recipients,
+      messageType: isUnicode(input.body) ? "unicode" : "text",
+    };
+    if (input.clientMessageId) {
+      // CEQUENS clientMessageId is numeric; coerce when possible.
+      const n = Number(input.clientMessageId);
+      body.clientMessageId = Number.isFinite(n) ? n : input.clientMessageId;
+    }
+    if (input.dlrUrl) body.dlrUrl = input.dlrUrl;
 
     const res = await fetch(url, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        messageText: message.body,
-        senderName,
-        recipients,
-        messageType: isUnicode(message.body) ? "unicode" : "text",
-      }),
+      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
       signal: AbortSignal.timeout(15_000),
     });
 
+    const raw = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      throw new Error(`CEQUENS SMS failed (${res.status}): ${detail.slice(0, 300)}`);
+      throw new Error(`CEQUENS SMS failed (${res.status}): ${JSON.stringify(raw).slice(0, 300)}`);
     }
+    return { providerMessageId: extractMessageId(raw), raw };
   }
 }
 
 /** Stub: wire the Twilio REST API here (account SID / auth token from env). */
 class TwilioSmsProvider implements SmsProvider {
   readonly name = "twilio";
-  async send(message: SmsMessage): Promise<void> {
+  async send(input: SmsSendInput): Promise<SmsSendResult> {
     const sid = process.env.TWILIO_ACCOUNT_SID;
     const token = process.env.TWILIO_AUTH_TOKEN;
     if (!sid || !token) {
       throw new Error("Twilio not configured (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN).");
     }
-    // TODO: POST https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json
-    console.warn(`[sms:twilio] stub — would send to ${message.to}`);
+    console.warn(`[sms:twilio] stub — would send to ${input.to}`);
+    return {};
   }
 }
 
 /** Stub: wire an Egyptian aggregator (SMSMisr / Victory Link) here. */
 class SmsMisrProvider implements SmsProvider {
   readonly name = "smsmisr";
-  async send(message: SmsMessage): Promise<void> {
+  async send(input: SmsSendInput): Promise<SmsSendResult> {
     const user = process.env.SMSMISR_USERNAME;
     const pass = process.env.SMSMISR_PASSWORD;
     if (!user || !pass) {
       throw new Error("SMSMisr not configured (SMSMISR_USERNAME / SMSMISR_PASSWORD).");
     }
-    // TODO: POST to the aggregator's HTTP API.
-    console.warn(`[sms:smsmisr] stub — would send to ${message.to}`);
+    console.warn(`[sms:smsmisr] stub — would send to ${input.to}`);
+    return {};
   }
 }
 
@@ -115,10 +154,4 @@ export function getSmsProvider(): SmsProvider {
       break;
   }
   return cached;
-}
-
-/** Compose and send the quote-page SMS (Arabic-first for the Egyptian audience). */
-export async function sendQuoteLinkSms(to: string, quoteUrl: string): Promise<void> {
-  const body = `هيلث باي: عروض أسعار الخصم الطبي جاهزة. اعرض واختر الخيار المناسب: ${quoteUrl}`;
-  await getSmsProvider().send({ to, body });
 }

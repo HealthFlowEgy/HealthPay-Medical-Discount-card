@@ -59,6 +59,7 @@ export const STRINGS: Dict = {
   "drawer.partnerRef": { en: "Partner ref", ar: "مرجع الشريك" },
   "drawer.nid4": { en: "National ID (last 4)", ar: "الرقم القومي (آخر ٤)" },
   "drawer.expires": { en: "Expires", ar: "ينتهي" },
+  "drawer.sms": { en: "SMS", ar: "الرسالة النصية" },
   "drawer.note": { en: "Note", ar: "ملاحظة" },
   "drawer.member": { en: "Member", ar: "العضو" },
   "drawer.company": { en: "Company", ar: "الشركة" },
@@ -125,6 +126,15 @@ export const STATUS_LABELS: Record<RequestStatus, { en: string; ar: string }> = 
   confirmed: { en: "confirmed", ar: "مؤكد" },
   expired: { en: "expired", ar: "منتهي" },
   cancelled: { en: "cancelled", ar: "ملغي" },
+};
+
+export const SMS_STATUS_LABELS: Record<string, { en: string; ar: string }> = {
+  pending: { en: "pending", ar: "قيد الإرسال" },
+  sent: { en: "sent", ar: "تم الإرسال" },
+  delivered: { en: "delivered", ar: "تم التسليم" },
+  failed: { en: "failed", ar: "فشل" },
+  undelivered: { en: "undelivered", ar: "لم يُسلَّم" },
+  unknown: { en: "unknown", ar: "غير معروف" },
 };
 
 export function t(locale: Locale, key: string): string {

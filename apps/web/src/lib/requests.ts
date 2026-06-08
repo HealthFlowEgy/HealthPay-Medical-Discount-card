@@ -20,7 +20,7 @@ import {
   confirmations,
 } from "@healthpay/db/schema";
 import { createQuoteToken, hashQuoteToken, buildQuoteUrl } from "./tokens.js";
-import { sendQuoteLinkSms } from "./sms/index.js";
+import { sendQuoteLinkSms } from "./sms/dispatch.js";
 import { transitionRequest } from "./transitions.js";
 import { writeAudit } from "./audit.js";
 import { publishOpsEvent } from "./events.js";
@@ -100,9 +100,9 @@ export async function createServiceRequest(
   });
 
   const quoteUrl = buildQuoteUrl(token);
-  // Best-effort SMS; failure must not block request creation.
+  // Best-effort SMS; dispatchSms records + never throws, but guard anyway.
   try {
-    await sendQuoteLinkSms(request.mobileE164, quoteUrl);
+    await sendQuoteLinkSms(db, request.id, request.mobileE164, quoteUrl);
   } catch (err) {
     console.error("Quote SMS failed:", err);
   }

@@ -57,6 +57,14 @@ export const webhookStatusEnum = pgEnum("webhook_status", [
   "failed",
   "exhausted",
 ]);
+export const smsStatusEnum = pgEnum("sms_status", [
+  "pending",
+  "sent",
+  "delivered",
+  "failed",
+  "undelivered",
+  "unknown",
+]);
 
 // ── Partners ──────────────────────────────────────────────────────────────────
 export const partners = pgTable(
@@ -272,6 +280,34 @@ export const webhookDeliveries = pgTable(
   }),
 );
 
+// ── SMS messages (send log + delivery receipts) ───────────────────────────────
+export const smsMessages = pgTable(
+  "sms_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    requestId: uuid("request_id").references(() => serviceRequests.id, {
+      onDelete: "set null",
+    }),
+    provider: varchar("provider", { length: 40 }).notNull(),
+    recipient: varchar("recipient", { length: 20 }).notNull(),
+    // Our correlation id, echoed by the provider's delivery receipt.
+    clientMessageId: varchar("client_message_id", { length: 64 }).notNull(),
+    // The provider's own id (from the send response).
+    providerMessageId: text("provider_message_id"),
+    status: smsStatusEnum("status").notNull().default("pending"),
+    error: text("error"),
+    rawResponse: jsonb("raw_response"),
+    dlr: jsonb("dlr"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    requestIdx: index("sms_messages_request_idx").on(t.requestId),
+    clientMsgIdx: uniqueIndex("sms_messages_client_message_id_idx").on(t.clientMessageId),
+    providerMsgIdx: index("sms_messages_provider_message_id_idx").on(t.providerMessageId),
+  }),
+);
+
 // Re-export the timestamp default helper for migrations that need it.
 export const nowSql = sql`now()`;
 
@@ -292,3 +328,5 @@ export type AuditLogEntry = typeof auditLog.$inferSelect;
 export type NewAuditLogEntry = typeof auditLog.$inferInsert;
 export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
 export type NewWebhookDelivery = typeof webhookDeliveries.$inferInsert;
+export type SmsMessage = typeof smsMessages.$inferSelect;
+export type NewSmsMessage = typeof smsMessages.$inferInsert;

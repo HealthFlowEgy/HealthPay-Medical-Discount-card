@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { maskMobile, NotFoundError } from "@healthpay/shared";
 import { decryptPii } from "@healthpay/db";
-import { partners } from "@healthpay/db/schema";
+import { partners, smsMessages } from "@healthpay/db/schema";
 import { getDb } from "@/lib/db";
 import { requireOpsUser } from "@/lib/ops-auth";
 import {
@@ -38,6 +38,16 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
     const options = await getOptions(db, request.id);
     const confirmation = await getConfirmation(db, request.id);
+    const [sms] = await db
+      .select({
+        status: smsMessages.status,
+        providerMessageId: smsMessages.providerMessageId,
+        updatedAt: smsMessages.updatedAt,
+      })
+      .from(smsMessages)
+      .where(eq(smsMessages.requestId, request.id))
+      .orderBy(desc(smsMessages.createdAt))
+      .limit(1);
 
     let pii: { nationalId?: string; mobile: string };
     if (reveal) {
@@ -82,6 +92,13 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       selectedOptionId: confirmation?.selectedOptionId ?? null,
       confirmedAt: confirmation?.confirmedAt?.toISOString() ?? null,
       confirmedFrom: confirmation?.confirmedFrom ?? null,
+      sms: sms
+        ? {
+            status: sms.status,
+            providerMessageId: sms.providerMessageId,
+            updatedAt: sms.updatedAt?.toISOString() ?? null,
+          }
+        : null,
       quoteExpiresAt: request.quoteExpiresAt.toISOString(),
       createdAt: request.createdAt.toISOString(),
       updatedAt: request.updatedAt.toISOString(),
