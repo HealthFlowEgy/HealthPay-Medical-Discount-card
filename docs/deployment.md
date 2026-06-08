@@ -68,8 +68,10 @@ vercel deploy --prod --token "$VERCEL_TOKEN"
 | `OPS_SESSION_SECRET` | ✓ | random secret for ops session JWTs |
 | `CRON_SECRET` | ✓ | bearer secret protecting the webhook-retry cron |
 | `APP_BASE_URL` | ✓ | deployed URL; used to build SMS quote links |
-| `SMS_PROVIDER` | ✓ | `console` (dev) \| `twilio` \| `smsmisr` |
+| `SMS_PROVIDER` | ✓ | `console` (dev) \| `cequens` \| `twilio` \| `smsmisr` |
 | `SMS_SENDER_ID` |  | default `HealthPay` |
+| `CEQUENS_API_KEY` | if cequens | CEQUENS API token (Bearer) |
+| `CEQUENS_SENDER_NAME` |  | approved CEQUENS sender ID, default `HealthPay` |
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` |  | if `SMS_PROVIDER=twilio` |
 | `SMSMISR_USERNAME` / `SMSMISR_PASSWORD` |  | if `SMS_PROVIDER=smsmisr` |
 | `PARTNER_ALLOWED_ORIGINS` |  | comma-separated origins allowed to embed the quote page |
