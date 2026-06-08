@@ -18,7 +18,13 @@ export default function Home() {
       <p className="mt-4 rounded-lg border border-gold-500/40 bg-gold-400/10 p-4 text-sm text-navy-800">
         {t("notInsurance")}
       </p>
-      <div className="mt-8 flex gap-4">
+      <div className="mt-8 flex flex-wrap gap-4">
+        <Link
+          href="/portal"
+          className="rounded-lg bg-teal-500 px-5 py-2.5 font-medium text-white hover:bg-teal-600"
+        >
+          {t("portal.brand")}
+        </Link>
         <Link
           href="/ops"
           className="rounded-lg bg-navy-900 px-5 py-2.5 font-medium text-white hover:bg-navy-800"

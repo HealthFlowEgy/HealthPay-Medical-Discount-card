@@ -118,6 +118,52 @@ export const STRINGS: Dict = {
   "quote.confirm": { en: "Confirm my selection", ar: "تأكيد اختياري" },
   "quote.confirming": { en: "Confirming…", ar: "جاري التأكيد…" },
   "quote.couldNotConfirm": { en: "Could not confirm your selection.", ar: "تعذّر تأكيد اختيارك." },
+
+  // Client portal
+  "portal.brand": { en: "HealthPay — Client Portal", ar: "هيلث باي — بوابة العميل" },
+  "portal.register": { en: "Create account", ar: "إنشاء حساب" },
+  "portal.login": { en: "Sign in", ar: "تسجيل الدخول" },
+  "portal.logout": { en: "Sign out", ar: "تسجيل الخروج" },
+  "portal.haveAccount": { en: "Already have an account? Sign in", ar: "لديك حساب؟ سجّل الدخول" },
+  "portal.noAccount": { en: "New here? Create an account", ar: "مستخدم جديد؟ أنشئ حسابًا" },
+  "portal.fullName": { en: "Full (quadruple) name", ar: "الاسم الرباعي" },
+  "portal.fullNameNote": {
+    en: "Must match the national ID card exactly.",
+    ar: "يجب أن يتطابق الاسم تمامًا مع بطاقة الرقم القومي.",
+  },
+  "portal.nationalId": { en: "National ID", ar: "الرقم القومي" },
+  "portal.mobile": { en: "Mobile number", ar: "رقم الهاتف" },
+  "portal.mobileNote": {
+    en: "Must have WhatsApp active to receive notifications and approvals.",
+    ar: "يجب أن يكون مفعّلاً عليه واتساب لاستلام الإشعارات والموافقات.",
+  },
+  "portal.whatsapp": { en: "This number has WhatsApp", ar: "هذا الرقم مفعّل عليه واتساب" },
+  "portal.password": { en: "Password", ar: "كلمة المرور" },
+  "portal.idCard": { en: "National ID card photo", ar: "صورة بطاقة الرقم القومي" },
+  "portal.idCardNote": {
+    en: "Upload a clear photo (JPG/PNG/PDF, required).",
+    ar: "ارفع صورة واضحة (JPG/PNG/PDF، إلزامي).",
+  },
+  "portal.submitting": { en: "Please wait…", ar: "برجاء الانتظار…" },
+  "portal.myRequests": { en: "My requests", ar: "طلباتي" },
+  "portal.newRequest": { en: "New request", ar: "طلب جديد" },
+  "portal.noRequests": { en: "You have no requests yet.", ar: "لا توجد لديك طلبات بعد." },
+  "portal.viewDetails": { en: "View details", ar: "عرض التفاصيل" },
+  "portal.requestTitle": { en: "Request medical pricing", ar: "طلب أسعار خدمة طبية" },
+  "portal.area": { en: "Area / district", ar: "المنطقة / الحي" },
+  "portal.selectArea": { en: "— Select area —", ar: "— اختر المنطقة —" },
+  "portal.anyArea": { en: "Any area in governorate", ar: "أي منطقة بالمحافظة" },
+  "portal.specialty": { en: "Specialty", ar: "التخصص" },
+  "portal.anySpecialty": { en: "— Any specialty —", ar: "— أي تخصص —" },
+  "portal.provider": { en: "Service provider", ar: "مقدم الخدمة" },
+  "portal.selectProvider": { en: "— Select a provider —", ar: "— اختر مقدم الخدمة —" },
+  "portal.requestedServices": { en: "Required services", ar: "الخدمات المطلوبة" },
+  "portal.requestedServicesNote": {
+    en: "Specify the exact services/tests required (required).",
+    ar: "حدّد الخدمات/التحاليل الدقيقة المطلوبة (إلزامي).",
+  },
+  "portal.submitRequest": { en: "Submit request", ar: "إرسال الطلب" },
+  "portal.created": { en: "Request submitted", ar: "تم إرسال الطلب" },
 };
 
 export const STATUS_LABELS: Record<RequestStatus, { en: string; ar: string }> = {
