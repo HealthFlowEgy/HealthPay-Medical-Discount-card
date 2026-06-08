@@ -4,7 +4,7 @@ import { and, or, eq, ilike, desc, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { opsQueueQuerySchema } from "@healthpay/shared";
 import { type Database } from "@healthpay/db";
-import { partners, serviceRequests, providers } from "@healthpay/db/schema";
+import { partners, serviceRequests, providers, clients } from "@healthpay/db/schema";
 
 export type OpsQueueQuery = z.output<typeof opsQueueQuerySchema>;
 
@@ -41,6 +41,9 @@ const exportColumns = {
   city: serviceRequests.city,
   mobileE164: serviceRequests.mobileE164,
   nationalIdLast4: serviceRequests.nationalIdLast4,
+  nationalIdEncrypted: serviceRequests.nationalIdEncrypted,
+  clientId: serviceRequests.clientId,
+  idCardUrl: clients.idCardUrl,
   memberNameAr: serviceRequests.memberNameAr,
   memberNameEn: serviceRequests.memberNameEn,
   requestedServices: serviceRequests.requestedServices,
@@ -59,6 +62,7 @@ export async function exportRequests(db: Database, q: OpsQueueQuery) {
     .from(serviceRequests)
     .leftJoin(partners, eq(serviceRequests.partnerId, partners.id))
     .leftJoin(providers, eq(serviceRequests.providerId, providers.id))
+    .leftJoin(clients, eq(serviceRequests.clientId, clients.id))
     .where(queueWhere(q))
     .orderBy(desc(serviceRequests.createdAt))
     .limit(5000);
@@ -79,6 +83,7 @@ export async function listRequests(db: Database, q: OpsQueueQuery) {
     .from(serviceRequests)
     .leftJoin(partners, eq(serviceRequests.partnerId, partners.id))
     .leftJoin(providers, eq(serviceRequests.providerId, providers.id))
+    .leftJoin(clients, eq(serviceRequests.clientId, clients.id))
     .where(where)
     .orderBy(desc(serviceRequests.createdAt))
     .limit(q.pageSize)

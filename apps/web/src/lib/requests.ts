@@ -32,6 +32,7 @@ import { sendQuoteLinkSms } from "./sms/dispatch.js";
 import { transitionRequest } from "./transitions.js";
 import { writeAudit } from "./audit.js";
 import { publishOpsEvent } from "./events.js";
+import { notifyNewClientRequest } from "./notify.js";
 
 export interface CreatedRequest {
   request: ServiceRequest;
@@ -190,6 +191,8 @@ export async function createClientRequest(
   } catch (err) {
     console.error("Quote SMS failed:", err);
   }
+  // Notify the call center of the new client request (best-effort).
+  await notifyNewClientRequest(db, request).catch(() => {});
   return { request, quoteUrl };
 }
 
@@ -258,9 +261,15 @@ export async function attachOptions(
   const values = options.map((o) => {
     const res = validatePricing(o.listPrice, o.discountedPrice);
     if (!res.ok) throw new ValidationError(res.reason);
+    // An option is an alternative if explicitly flagged, or its provider differs
+    // from the provider the client originally chose.
+    const isAlternative =
+      o.isAlternative ??
+      (!!o.providerId && !!request.providerId && o.providerId !== request.providerId);
     return {
       requestId: request.id,
       providerId: o.providerId,
+      isAlternative,
       providerName: o.providerName,
       providerAddress: o.providerAddress,
       serviceDescription: o.serviceDescription,

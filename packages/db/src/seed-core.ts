@@ -25,7 +25,20 @@ import {
   serviceRequests,
   pricingOptions,
   confirmations,
+  serviceCatalog,
 } from "./schema.js";
+
+/** Fallback service catalog by provider type (used until per-provider data is imported). */
+const SERVICE_CATALOG: Record<ProviderType, string[]> = {
+  labs: ["صورة دم كاملة", "سكر صائم", "سكر تراكمي", "وظائف كبد", "وظائف كلى", "كرياتينين", "يوريا", "صورة دهون", "بول كامل", "فيتامين د", "وظائف الغدة الدرقية"],
+  radiology_centers: ["أشعة عادية", "أشعة بالصبغة", "موجات صوتية (سونار)", "أشعة مقطعية CT", "رنين مغناطيسي MRI", "ماموجرام", "بانوراما أسنان"],
+  dental_clinics: ["كشف", "حشو", "خلع", "تنظيف وتلميع", "علاج جذور", "تركيبات", "تقويم", "تبييض"],
+  physiotherapy_centers: ["جلسة علاج طبيعي", "تأهيل", "علاج كهربائي", "علاج بالموجات", "تدليك علاجي"],
+  doctors_clinics: ["كشف", "استشارة", "إعادة كشف", "متابعة"],
+  hospital: ["كشف طوارئ", "حجز غرفة", "عملية", "إقامة يومية", "رعاية مركزة"],
+  outpatient_clinic_centers: ["كشف", "استشارة", "متابعة"],
+  specialized_centers_outpatient: ["كشف تخصصي", "إجراء", "متابعة"],
+};
 
 export interface ProviderSeedRow {
   governorate: Governorate | null;
@@ -103,9 +116,16 @@ export async function seedAll(
   await db.delete(confirmations);
   await db.delete(pricingOptions);
   await db.delete(serviceRequests);
+  await db.delete(serviceCatalog);
   await db.delete(providers);
   await db.delete(partners);
   await db.delete(opsUsers);
+
+  // Fallback service catalog by provider type.
+  const catalogRows = Object.entries(SERVICE_CATALOG).flatMap(([providerType, names]) =>
+    names.map((name, i) => ({ providerType: providerType as ProviderType, name, sort: i })),
+  );
+  await db.insert(serviceCatalog).values(catalogRows);
 
   // Providers directory (batched).
   const batch = 500;

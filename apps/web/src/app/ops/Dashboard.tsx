@@ -29,6 +29,8 @@ export interface QueueItem {
   city: string | null;
   mobileE164: string;
   nationalIdLast4: string;
+  nationalId: string | null;
+  hasIdCard: boolean;
   memberNameAr: string | null;
   memberNameEn: string | null;
   requestedServices: string | null;
@@ -140,6 +142,15 @@ export default function Dashboard({ user }: { user: OpsSession }) {
     await fetch("/api/v1/ops/logout", { method: "POST" });
     router.push("/ops/login");
     router.refresh();
+  }
+
+  async function changeStatus(id: string, status: "completed" | "cancelled") {
+    await fetch(`/api/v1/ops/requests/${id}/status`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    void load();
   }
 
   const counts = REQUEST_STATUSES.reduce<Record<string, number>>((acc, s) => {
@@ -293,24 +304,38 @@ export default function Dashboard({ user }: { user: OpsSession }) {
                     <td className="px-4 py-2.5">
                       {it.memberNameAr || it.memberNameEn || it.partnerName || "—"}
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs">••• {it.nationalIdLast4}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs">{maskLocal(it.mobileE164)}</td>
+                    <td className="px-4 py-2.5 font-mono text-xs">{it.nationalId ?? `••• ${it.nationalIdLast4}`}</td>
+                    <td className="px-4 py-2.5 font-mono text-xs">{it.mobileE164}</td>
                     <td className="px-4 py-2.5">
                       {it.providerName ??
                         (it.providerType
                           ? L(PROVIDER_TYPE_LABELS[it.providerType])
                           : L(SERVICE_TYPE_LABELS[it.serviceType]))}
                     </td>
-                    <td className="max-w-[16rem] truncate px-4 py-2.5 text-navy-600" title={it.requestedServices ?? ""}>
+                    <td className="max-w-[14rem] truncate px-4 py-2.5 text-navy-600" title={it.requestedServices ?? ""}>
                       {it.requestedServices ?? "—"}
                     </td>
-                    <td className="px-4 py-2.5 text-end">
-                      <button
-                        onClick={() => setSelectedId(it.id)}
-                        className="rounded border border-navy-200 px-2.5 py-1 text-xs font-medium text-navy-800 hover:bg-navy-50"
-                      >
-                        {t("ops.viewDetails")}
-                      </button>
+                    <td className="px-4 py-2.5">
+                      <div className="flex flex-wrap justify-end gap-1">
+                        {it.status === "confirmed" && (
+                          <button onClick={() => changeStatus(it.id, "completed")} className="rounded border border-navy-300 px-2 py-1 text-xs text-navy-800 hover:bg-navy-50" title={t("ops.markCompleted")}>
+                            ✓
+                          </button>
+                        )}
+                        {["pending_quote", "quoted", "confirmed"].includes(it.status) && (
+                          <button onClick={() => changeStatus(it.id, "cancelled")} className="rounded border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50" title={t("ops.markCancelled")}>
+                            ✕
+                          </button>
+                        )}
+                        {it.hasIdCard && (
+                          <a href={`/api/v1/ops/requests/${it.id}/id-card`} target="_blank" rel="noreferrer" className="rounded border border-navy-200 px-2 py-1 text-xs text-navy-800 hover:bg-navy-50" title={t("ops.viewIdCard")}>
+                            🪪
+                          </a>
+                        )}
+                        <button onClick={() => setSelectedId(it.id)} className="rounded border border-navy-200 px-2.5 py-1 text-xs font-medium text-navy-800 hover:bg-navy-50">
+                          {t("ops.viewDetails")}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

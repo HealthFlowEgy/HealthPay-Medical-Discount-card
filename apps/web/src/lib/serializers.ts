@@ -7,6 +7,7 @@ export function serializeOption(o: PricingOption) {
   return {
     id: o.id,
     providerId: o.providerId,
+    isAlternative: o.isAlternative,
     providerName: o.providerName,
     providerAddress: o.providerAddress,
     serviceDescription: o.serviceDescription,

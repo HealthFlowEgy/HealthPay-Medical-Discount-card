@@ -33,6 +33,7 @@ interface OptionDraft {
   listPrice: string;
   discountedPrice: string;
   validityNote: string;
+  isAlternative: boolean;
 }
 
 interface DirectoryProvider {
@@ -51,6 +52,7 @@ const emptyDraft: OptionDraft = {
   listPrice: "",
   discountedPrice: "",
   validityNote: "",
+  isAlternative: false,
 };
 
 export default function RequestDrawer({
@@ -159,6 +161,8 @@ export default function RequestDrawer({
         providerId: p.id,
         providerName: p.name,
         providerAddress: p.address ?? "",
+        // A directory provider different from the client's choice = alternative.
+        isAlternative: !!detail?.providerId && p.id !== detail.providerId,
       };
       // Replace the first fully-empty draft, else append.
       const idx = ds.findIndex((d) => !d.providerName && !d.serviceDescription && !d.listPrice);
@@ -179,6 +183,7 @@ export default function RequestDrawer({
         listPrice: Number(d.listPrice),
         discountedPrice: Number(d.discountedPrice),
         validityNote: d.validityNote || undefined,
+        isAlternative: d.isAlternative,
       }));
     if (options.length === 0) {
       setError(t("drawer.enterPrices"));
@@ -256,6 +261,14 @@ export default function RequestDrawer({
           {detail.note && <Field label={t("drawer.note")} value={detail.note} className="col-span-2" />}
         </section>
 
+        {/* Requested services — front and centre for pricing */}
+        {detail.requestedServices && (
+          <section className="rounded-lg border-2 border-teal-500/40 bg-teal-50/50 p-4">
+            <h3 className="text-sm font-semibold text-navy-800">{t("drawer.requestedServices")}</h3>
+            <p className="mt-1 whitespace-pre-wrap text-navy-900">{detail.requestedServices}</p>
+          </section>
+        )}
+
         {/* Member */}
         <section className="rounded-lg border border-navy-100 p-4">
           <h3 className="mb-2 text-sm font-semibold text-navy-800">{t("drawer.member")}</h3>
@@ -312,11 +325,18 @@ export default function RequestDrawer({
                 <div
                   key={o.id}
                   className={`rounded-lg border p-3 text-sm ${
-                    o.id === detail.selectedOptionId
-                      ? "border-emerald-500 bg-emerald-50"
-                      : "border-navy-100"
+                    o.isAlternative
+                      ? "border-gold-500 bg-gold-400/10"
+                      : o.id === detail.selectedOptionId
+                        ? "border-emerald-500 bg-emerald-50"
+                        : "border-navy-100"
                   }`}
                 >
+                  {o.isAlternative && (
+                    <div className="mb-1 inline-block rounded bg-gold-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      ★ {t("quote.alternative")}
+                    </div>
+                  )}
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="font-medium text-navy-900">{o.providerName}</p>
@@ -440,6 +460,16 @@ export default function RequestDrawer({
                         onChange={(v) => updateDraft(setDrafts, i, "validityNote", v)}
                       />
                     </div>
+                    <label className="mt-2 flex items-center gap-2 text-xs text-gold-600">
+                      <input
+                        type="checkbox"
+                        checked={d.isAlternative}
+                        onChange={(e) =>
+                          setDrafts((ds) => ds.map((x, j) => (j === i ? { ...x, isAlternative: e.target.checked } : x)))
+                        }
+                      />
+                      ★ {t("drawer.markAlternative")}
+                    </label>
                     <div className="mt-2 flex items-center justify-between text-xs">
                       <span className={outOfBand ? "text-red-600" : "text-teal-600"}>
                         {pct === null

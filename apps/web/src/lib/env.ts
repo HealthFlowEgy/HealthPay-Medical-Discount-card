@@ -33,6 +33,10 @@ export const env = {
   get smsSenderId() {
     return process.env.SMS_SENDER_ID ?? "HealthPay";
   },
+  /** Call-center number that receives a notification on each new client request. */
+  get callCenterPhone() {
+    return process.env.CALL_CENTER_PHONE ?? "";
+  },
   get rateLimitPerMinute() {
     return Number(process.env.RATE_LIMIT_PER_MINUTE ?? 60);
   },

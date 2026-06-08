@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import { opsQueueQuerySchema, PROVIDER_TYPE_LABELS } from "@healthpay/shared";
+import { decryptPii } from "@healthpay/db";
 import { getDb } from "@/lib/db";
 import { requireOpsUser } from "@/lib/ops-auth";
 import { exportRequests } from "@/lib/ops-queue";
@@ -26,9 +27,16 @@ export async function GET(req: Request) {
 
     const rows = await exportRequests(db, query as never);
 
+    const fullNid = (enc: string) => {
+      try {
+        return decryptPii(enc);
+      } catch {
+        return "";
+      }
+    };
     const data = rows.map((r) => ({
       "اسم العميل": r.memberNameAr ?? r.memberNameEn ?? r.partnerName ?? "",
-      "الرقم القومي (آخر ٤)": r.nationalIdLast4,
+      "الرقم القومي": fullNid(r.nationalIdEncrypted),
       "رقم الهاتف": r.mobileE164,
       "مقدم الخدمة":
         r.providerName ?? (r.providerType ? PROVIDER_TYPE_LABELS[r.providerType].ar : ""),

@@ -137,6 +137,38 @@ export const providers = pgTable(
   }),
 );
 
+// ── Provider services (per-provider catalog) ──────────────────────────────────
+export const providerServices = pgTable(
+  "provider_services",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    providerId: uuid("provider_id")
+      .notNull()
+      .references(() => providers.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    sort: integer("sort").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    providerIdx: index("provider_services_provider_idx").on(t.providerId),
+  }),
+);
+
+// ── Service catalog (fallback by provider type / specialty) ───────────────────
+export const serviceCatalog = pgTable(
+  "service_catalog",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    providerType: providerTypeEnum("provider_type").notNull(),
+    specialty: specialtyEnum("specialty"),
+    name: text("name").notNull(),
+    sort: integer("sort").notNull().default(0),
+  },
+  (t) => ({
+    typeIdx: index("service_catalog_type_idx").on(t.providerType),
+  }),
+);
+
 // ── Service requests ──────────────────────────────────────────────────────────
 export const serviceRequests = pgTable(
   "service_requests",
@@ -208,6 +240,8 @@ export const pricingOptions = pgTable(
       onDelete: "set null",
     }),
     providerName: varchar("provider_name", { length: 200 }).notNull(),
+    // An alternative offer = a different provider than the one the client chose.
+    isAlternative: boolean("is_alternative").notNull().default(false),
     providerAddress: text("provider_address"),
     serviceDescription: text("service_description").notNull(),
     listPrice: numeric("list_price", { precision: 12, scale: 2 }).notNull(),
@@ -348,6 +382,8 @@ export type Provider = typeof providers.$inferSelect;
 export type NewProvider = typeof providers.$inferInsert;
 export type Client = typeof clients.$inferSelect;
 export type NewClient = typeof clients.$inferInsert;
+export type ProviderService = typeof providerServices.$inferSelect;
+export type ServiceCatalogItem = typeof serviceCatalog.$inferSelect;
 export type ServiceRequest = typeof serviceRequests.$inferSelect;
 export type NewServiceRequest = typeof serviceRequests.$inferInsert;
 export type PricingOption = typeof pricingOptions.$inferSelect;

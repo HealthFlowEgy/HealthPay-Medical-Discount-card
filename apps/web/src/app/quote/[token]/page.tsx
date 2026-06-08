@@ -20,6 +20,7 @@ interface Option {
   discountPct: number;
   currency: string;
   validityNote: string | null;
+  isAlternative?: boolean;
 }
 
 interface Quote {
@@ -204,17 +205,25 @@ function QuoteBody({
               disabled={isConfirmed}
               onClick={() => setSelected(o.id)}
               className={`block w-full rounded-xl border-2 p-4 text-start transition ${
-                isChosen
-                  ? "border-emerald-500 bg-emerald-50"
-                  : isSel
-                    ? "border-teal-500 bg-teal-50"
-                    : "border-navy-100 bg-white hover:border-teal-300"
+                o.isAlternative
+                  ? "border-gold-500 bg-gold-400/10"
+                  : isChosen
+                    ? "border-emerald-500 bg-emerald-50"
+                    : isSel
+                      ? "border-teal-500 bg-teal-50"
+                      : "border-navy-100 bg-white hover:border-teal-300"
               } ${isConfirmed && !isChosen ? "opacity-50" : ""}`}
             >
+              {o.isAlternative && (
+                <div className="mb-2 inline-block rounded bg-gold-500 px-2 py-0.5 text-xs font-bold text-white">
+                  ★ {t("quote.alternative")}
+                </div>
+              )}
               <div className="flex items-start justify-between">
                 <div>
                   <p className="font-semibold text-navy-900">{o.providerName}</p>
                   <p className="text-sm text-navy-600">{o.serviceDescription}</p>
+                  {o.isAlternative && <p className="mt-0.5 text-xs text-gold-600">{t("quote.alternativeNote")}</p>}
                   {o.providerAddress && (
                     <p className="mt-1 text-xs text-navy-400">{o.providerAddress}</p>
                   )}

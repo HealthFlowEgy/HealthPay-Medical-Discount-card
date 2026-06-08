@@ -20,6 +20,7 @@ interface Option {
   discountedPrice: number;
   discountPct: number;
   currency: string;
+  isAlternative?: boolean;
 }
 interface Detail {
   id: string;
@@ -122,13 +123,21 @@ export default function RequestDetail({ id }: { id: string }) {
                 disabled={isConfirmed}
                 onClick={() => setSelected(o.id)}
                 className={`block w-full rounded-xl border-2 p-4 text-start ${
-                  chosen ? "border-emerald-500 bg-emerald-50" : sel ? "border-teal-500 bg-teal-50" : "border-navy-100 bg-white"
+                  o.isAlternative
+                    ? "border-gold-500 bg-gold-400/10"
+                    : chosen ? "border-emerald-500 bg-emerald-50" : sel ? "border-teal-500 bg-teal-50" : "border-navy-100 bg-white"
                 } ${isConfirmed && !chosen ? "opacity-50" : ""}`}
               >
+                {o.isAlternative && (
+                  <div className="mb-2 inline-block rounded bg-gold-500 px-2 py-0.5 text-xs font-bold text-white">
+                    ★ {t("quote.alternative")}
+                  </div>
+                )}
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="font-semibold text-navy-900">{o.providerName}</p>
                     <p className="text-sm text-navy-600">{o.serviceDescription}</p>
+                    {o.isAlternative && <p className="mt-0.5 text-xs text-gold-600">{t("quote.alternativeNote")}</p>}
                   </div>
                   <div className="text-end">
                     <p className="text-sm text-navy-400 line-through">{o.listPrice} {o.currency}</p>

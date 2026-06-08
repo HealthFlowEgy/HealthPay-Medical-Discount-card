@@ -1,4 +1,5 @@
 import { opsQueueQuerySchema, ValidationError } from "@healthpay/shared";
+import { decryptPii } from "@healthpay/db";
 import { getDb } from "@/lib/db";
 import { requireOpsUser } from "@/lib/ops-auth";
 import { listRequests } from "@/lib/ops-queue";
@@ -30,12 +31,23 @@ export async function GET(req: Request) {
     const result = await listRequests(getDb(), parsed.data);
     return json({
       ...result,
-      items: result.items.map((r) => ({
-        ...r,
-        quoteExpiresAt: r.quoteExpiresAt.toISOString(),
-        createdAt: r.createdAt.toISOString(),
-        updatedAt: r.updatedAt.toISOString(),
-      })),
+      items: result.items.map((r) => {
+        const { nationalIdEncrypted, idCardUrl, ...rest } = r;
+        let nationalId: string | null = null;
+        try {
+          nationalId = decryptPii(nationalIdEncrypted);
+        } catch {
+          /* keep null */
+        }
+        return {
+          ...rest,
+          nationalId, // full national ID for the ops grid
+          hasIdCard: !!idCardUrl,
+          quoteExpiresAt: r.quoteExpiresAt.toISOString(),
+          createdAt: r.createdAt.toISOString(),
+          updatedAt: r.updatedAt.toISOString(),
+        };
+      }),
     });
   } catch (err) {
     return errorResponse(err);

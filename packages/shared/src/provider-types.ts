@@ -56,6 +56,17 @@ export function providerTypeFromArabic(raw: string): ProviderType | undefined {
   return PROVIDER_TYPE_BY_ARABIC[raw.trim()];
 }
 
+/** Provider types for which choosing a specialty is mandatory. */
+export const SPECIALTY_REQUIRED_TYPES: readonly ProviderType[] = [
+  "doctors_clinics",
+  "hospital",
+  "specialized_centers_outpatient",
+];
+
+export function specialtyRequiredFor(t: ProviderType): boolean {
+  return SPECIALTY_REQUIRED_TYPES.includes(t);
+}
+
 /** Legacy serviceType ↔ providerType bridges (kept for back-compat). */
 export function serviceTypeToProviderType(s: ServiceType): ProviderType {
   switch (s) {

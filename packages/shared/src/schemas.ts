@@ -8,7 +8,7 @@
 import { z } from "zod";
 import { GOVERNORATES } from "./governorates.js";
 import { SERVICE_TYPES } from "./service-type.js";
-import { PROVIDER_TYPES } from "./provider-types.js";
+import { PROVIDER_TYPES, specialtyRequiredFor } from "./provider-types.js";
 import { SPECIALTIES } from "./specialties.js";
 import { GENDERS, MARITAL_STATUSES } from "./member.js";
 import { validateNationalId } from "./national-id.js";
@@ -95,6 +95,8 @@ export const pricingOptionInputSchema = z
   .object({
     /** Optional link to a directory provider; providerName stays the display value. */
     providerId: z.string().uuid().optional(),
+    /** Marks this option as an alternative to the provider the client chose. */
+    isAlternative: z.boolean().optional(),
     providerName: z.string().trim().min(1).max(200),
     providerAddress: z.string().trim().max(500).optional(),
     serviceDescription: z.string().trim().min(1).max(500),
@@ -174,6 +176,14 @@ export const portalRequestSchema = z
         code: z.ZodIssueCode.custom,
         message: "Provide either `providerType` or `serviceType`.",
         path: ["providerType"],
+      });
+    }
+    // Specialty is mandatory for doctors' clinics / hospitals / specialized centers.
+    if (v.providerType && specialtyRequiredFor(v.providerType) && !v.specialty) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Specialty is required for this provider type.",
+        path: ["specialty"],
       });
     }
   });
