@@ -9,7 +9,11 @@
     "allowJs": true,
     "incremental": true,
     "plugins": [{ "name": "next" }],
-    "paths": { "@/*": ["./src/*"] }
+    "paths": {
+      "@/*": ["./src/*"],
+      "@healthpay/quote-sdk": ["../../packages/sdk/src/index.ts"],
+      "@healthpay/quote-sdk/embed": ["../../packages/sdk/src/embed.ts"]
+    }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
