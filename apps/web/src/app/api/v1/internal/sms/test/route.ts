@@ -35,6 +35,7 @@ export async function POST(req: Request) {
         provider: provider.name,
         to: norm.e164,
         smsId: result.id,
+        clientMessageId: result.clientMessageId,
         status: result.status,
         providerMessageId: result.providerMessageId,
         error: result.error,

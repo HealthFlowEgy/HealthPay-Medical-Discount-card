@@ -37,6 +37,7 @@ export function mapDlrStatus(raw: string | undefined | null): SmsDeliveryStatus 
 
 export interface DispatchResult {
   id: string;
+  clientMessageId: string;
   status: SmsDeliveryStatus;
   providerMessageId?: string | null;
   error?: string;
@@ -83,7 +84,7 @@ export async function dispatchSms(
         updatedAt: new Date(),
       })
       .where(eq(smsMessages.id, row!.id));
-    return { id: row!.id, status: "sent", providerMessageId: result.providerMessageId ?? null };
+    return { id: row!.id, clientMessageId, status: "sent", providerMessageId: result.providerMessageId ?? null };
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     await db
@@ -91,7 +92,7 @@ export async function dispatchSms(
       .set({ status: "failed", error, updatedAt: new Date() })
       .where(eq(smsMessages.id, row!.id));
     console.error("SMS send failed:", err);
-    return { id: row!.id, status: "failed", error };
+    return { id: row!.id, clientMessageId, status: "failed", error };
   }
 }
 
