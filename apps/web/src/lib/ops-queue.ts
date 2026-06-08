@@ -4,11 +4,12 @@ import { and, or, eq, ilike, desc, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { opsQueueQuerySchema } from "@healthpay/shared";
 import { type Database } from "@healthpay/db";
-import { partners, serviceRequests } from "@healthpay/db/schema";
+import { partners, serviceRequests, providers } from "@healthpay/db/schema";
 
 export type OpsQueueQuery = z.output<typeof opsQueueQuerySchema>;
 
-export async function listRequests(db: Database, q: OpsQueueQuery) {
+/** Build the shared WHERE clause for the queue + export. */
+function queueWhere(q: OpsQueueQuery) {
   const filters: SQL[] = [];
   if (q.status) filters.push(eq(serviceRequests.status, q.status));
   if (q.governorate) filters.push(eq(serviceRequests.governorate, q.governorate));
@@ -20,11 +21,51 @@ export async function listRequests(db: Database, q: OpsQueueQuery) {
     const search = or(
       ilike(serviceRequests.mobileE164, like),
       ilike(serviceRequests.partnerReference, like),
+      ilike(serviceRequests.memberNameAr, like),
+      ilike(serviceRequests.memberNameEn, like),
       ilike(partners.name, like),
     );
     if (search) filters.push(search);
   }
-  const where = filters.length ? and(...filters) : undefined;
+  return filters.length ? and(...filters) : undefined;
+}
+
+const exportColumns = {
+  id: serviceRequests.id,
+  status: serviceRequests.status,
+  serviceType: serviceRequests.serviceType,
+  providerType: serviceRequests.providerType,
+  specialty: serviceRequests.specialty,
+  governorate: serviceRequests.governorate,
+  area: serviceRequests.area,
+  city: serviceRequests.city,
+  mobileE164: serviceRequests.mobileE164,
+  nationalIdLast4: serviceRequests.nationalIdLast4,
+  memberNameAr: serviceRequests.memberNameAr,
+  memberNameEn: serviceRequests.memberNameEn,
+  requestedServices: serviceRequests.requestedServices,
+  providerName: providers.name,
+  partnerReference: serviceRequests.partnerReference,
+  partnerName: partners.name,
+  quoteExpiresAt: serviceRequests.quoteExpiresAt,
+  createdAt: serviceRequests.createdAt,
+  updatedAt: serviceRequests.updatedAt,
+} as const;
+
+/** All filtered rows (no pagination) for Excel export. */
+export async function exportRequests(db: Database, q: OpsQueueQuery) {
+  return db
+    .select(exportColumns)
+    .from(serviceRequests)
+    .leftJoin(partners, eq(serviceRequests.partnerId, partners.id))
+    .leftJoin(providers, eq(serviceRequests.providerId, providers.id))
+    .where(queueWhere(q))
+    .orderBy(desc(serviceRequests.createdAt))
+    .limit(5000);
+}
+
+export async function listRequests(db: Database, q: OpsQueueQuery) {
+  const where = queueWhere(q);
 
   const countRows = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -34,25 +75,10 @@ export async function listRequests(db: Database, q: OpsQueueQuery) {
   const count = countRows[0]?.count ?? 0;
 
   const rows = await db
-    .select({
-      id: serviceRequests.id,
-      status: serviceRequests.status,
-      serviceType: serviceRequests.serviceType,
-      providerType: serviceRequests.providerType,
-      specialty: serviceRequests.specialty,
-      governorate: serviceRequests.governorate,
-      area: serviceRequests.area,
-      city: serviceRequests.city,
-      mobileE164: serviceRequests.mobileE164,
-      nationalIdLast4: serviceRequests.nationalIdLast4,
-      partnerReference: serviceRequests.partnerReference,
-      partnerName: partners.name,
-      quoteExpiresAt: serviceRequests.quoteExpiresAt,
-      createdAt: serviceRequests.createdAt,
-      updatedAt: serviceRequests.updatedAt,
-    })
+    .select(exportColumns)
     .from(serviceRequests)
     .leftJoin(partners, eq(serviceRequests.partnerId, partners.id))
+    .leftJoin(providers, eq(serviceRequests.providerId, providers.id))
     .where(where)
     .orderBy(desc(serviceRequests.createdAt))
     .limit(q.pageSize)

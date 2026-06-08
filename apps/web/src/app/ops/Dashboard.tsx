@@ -28,6 +28,10 @@ export interface QueueItem {
   city: string | null;
   mobileE164: string;
   nationalIdLast4: string;
+  memberNameAr: string | null;
+  memberNameEn: string | null;
+  requestedServices: string | null;
+  providerName: string | null;
   partnerReference: string | null;
   partnerName: string | null;
   quoteExpiresAt: string;
@@ -235,6 +239,12 @@ export default function Dashboard({ user }: { user: OpsSession }) {
           >
             {t("apply")}
           </button>
+          <a
+            href={`/api/v1/ops/requests/export?${buildQuery()}`}
+            className="rounded-md border border-emerald-600 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+          >
+            ⬇ {t("ops.export")}
+          </a>
         </div>
 
         {/* Queue table */}
@@ -243,33 +253,30 @@ export default function Dashboard({ user }: { user: OpsSession }) {
             <thead className="bg-navy-50 text-xs uppercase tracking-wide text-navy-700">
               <tr>
                 <th className="px-4 py-2 text-start">{t("ops.col.status")}</th>
-                <th className="px-4 py-2 text-start">{t("ops.col.service")}</th>
-                <th className="px-4 py-2 text-start">{t("ops.col.location")}</th>
-                <th className="px-4 py-2 text-start">{t("ops.col.mobile")}</th>
-                <th className="px-4 py-2 text-start">{t("ops.col.partner")}</th>
-                <th className="px-4 py-2 text-start">{t("ops.col.age")}</th>
+                <th className="px-4 py-2 text-start">{t("ops.col.client")}</th>
+                <th className="px-4 py-2 text-start">{t("ops.col.nationalId")}</th>
+                <th className="px-4 py-2 text-start">{t("ops.col.phone")}</th>
+                <th className="px-4 py-2 text-start">{t("ops.col.provider")}</th>
+                <th className="px-4 py-2 text-start">{t("ops.col.services")}</th>
+                <th className="px-4 py-2 text-end" />
               </tr>
             </thead>
             <tbody>
               {loading && items.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-navy-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-navy-500">
                     {t("loading")}
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-navy-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-navy-500">
                     {t("ops.noResults")}
                   </td>
                 </tr>
               ) : (
                 items.map((it) => (
-                  <tr
-                    key={it.id}
-                    onClick={() => setSelectedId(it.id)}
-                    className="cursor-pointer border-t border-navy-50 hover:bg-teal-50/40"
-                  >
+                  <tr key={it.id} className="border-t border-navy-50 hover:bg-navy-50/40">
                     <td className="px-4 py-2.5">
                       <span
                         className={`inline-block rounded border px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[it.status]}`}
@@ -278,22 +285,27 @@ export default function Dashboard({ user }: { user: OpsSession }) {
                       </span>
                     </td>
                     <td className="px-4 py-2.5">
-                      {it.providerType
-                        ? L(PROVIDER_TYPE_LABELS[it.providerType])
-                        : L(SERVICE_TYPE_LABELS[it.serviceType])}
+                      {it.memberNameAr || it.memberNameEn || it.partnerName || "—"}
                     </td>
-                    <td className="px-4 py-2.5">
-                      {L(GOVERNORATE_LABELS[it.governorate])}
-                      {it.area ? ` · ${it.area}` : it.city ? ` · ${it.city}` : ""}
-                    </td>
+                    <td className="px-4 py-2.5 font-mono text-xs">••• {it.nationalIdLast4}</td>
                     <td className="px-4 py-2.5 font-mono text-xs">{maskLocal(it.mobileE164)}</td>
                     <td className="px-4 py-2.5">
-                      {it.partnerName}
-                      {it.partnerReference ? (
-                        <span className="text-navy-400"> · {it.partnerReference}</span>
-                      ) : null}
+                      {it.providerName ??
+                        (it.providerType
+                          ? L(PROVIDER_TYPE_LABELS[it.providerType])
+                          : L(SERVICE_TYPE_LABELS[it.serviceType]))}
                     </td>
-                    <td className="px-4 py-2.5 text-navy-500">{ageLabel(it.createdAt)}</td>
+                    <td className="max-w-[16rem] truncate px-4 py-2.5 text-navy-600" title={it.requestedServices ?? ""}>
+                      {it.requestedServices ?? "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-end">
+                      <button
+                        onClick={() => setSelectedId(it.id)}
+                        className="rounded border border-navy-200 px-2.5 py-1 text-xs font-medium text-navy-800 hover:bg-navy-50"
+                      >
+                        {t("ops.viewDetails")}
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}

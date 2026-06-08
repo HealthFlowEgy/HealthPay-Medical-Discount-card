@@ -15,7 +15,15 @@ import {
   type MaritalStatus,
 } from "@healthpay/shared";
 import { useI18n } from "@/components/LocaleProvider";
-import { SMS_STATUS_LABELS } from "@/lib/i18n";
+import { SMS_STATUS_LABELS, STATUS_LABELS } from "@/lib/i18n";
+
+interface AuditEntry {
+  action: string;
+  actor: string;
+  from: string | null;
+  to: string | null;
+  at: string;
+}
 
 interface OptionDraft {
   providerId?: string;
@@ -62,6 +70,8 @@ export default function RequestDrawer({
   const [saving, setSaving] = useState(false);
   const [providerQuery, setProviderQuery] = useState("");
   const [providerResults, setProviderResults] = useState<DirectoryProvider[]>([]);
+  const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const [statusBusy, setStatusBusy] = useState(false);
 
   const load = useCallback(
     async (reveal = false) => {
@@ -77,6 +87,32 @@ export default function RequestDrawer({
   useEffect(() => {
     void load(false);
   }, [load]);
+
+  const loadAudit = useCallback(async () => {
+    const res = await fetch(`/api/v1/ops/requests/${requestId}/audit`, { cache: "no-store" });
+    if (res.ok) setAudit((await res.json()).entries ?? []);
+  }, [requestId]);
+
+  useEffect(() => {
+    void loadAudit();
+  }, [loadAudit]);
+
+  async function changeStatus(status: "completed" | "cancelled") {
+    setStatusBusy(true);
+    try {
+      const res = await fetch(`/api/v1/ops/requests/${requestId}/status`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        await Promise.all([load(false), loadAudit()]);
+        onChanged();
+      }
+    } finally {
+      setStatusBusy(false);
+    }
+  }
 
   // Auto-suggest matching directory providers (governorate + type + specialty).
   const loadProviders = useCallback(
@@ -442,6 +478,58 @@ export default function RequestDrawer({
                     : t("drawer.addMore")}
               </button>
             </div>
+          </section>
+        )}
+
+        {/* Status actions: Completed / Cancelled */}
+        {(detail.status === "confirmed" ||
+          detail.status === "quoted" ||
+          detail.status === "pending_quote") && (
+          <section className="flex flex-wrap gap-2">
+            {detail.status === "confirmed" && (
+              <button
+                onClick={() => changeStatus("completed")}
+                disabled={statusBusy}
+                className="rounded-lg bg-navy-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-navy-800 disabled:opacity-60"
+              >
+                ✓ {t("ops.markCompleted")}
+              </button>
+            )}
+            <button
+              onClick={() => changeStatus("cancelled")}
+              disabled={statusBusy}
+              className="rounded-lg border border-red-300 px-4 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
+            >
+              ✕ {t("ops.markCancelled")}
+            </button>
+          </section>
+        )}
+
+        {/* Audit trail */}
+        {audit.length > 0 && (
+          <section>
+            <h3 className="mb-2 text-sm font-semibold text-navy-800">{t("ops.auditTrail")}</h3>
+            <ul className="space-y-1.5">
+              {audit.map((e, i) => (
+                <li key={i} className="rounded border border-navy-100 bg-navy-50/40 px-2.5 py-1.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-navy-800">
+                      {e.from && e.to ? (
+                        <>
+                          {L(STATUS_LABELS[e.from as keyof typeof STATUS_LABELS] ?? { en: e.from, ar: e.from })}
+                          {" → "}
+                          {L(STATUS_LABELS[e.to as keyof typeof STATUS_LABELS] ?? { en: e.to, ar: e.to })}
+                        </>
+                      ) : (
+                        e.action
+                      )}
+                    </span>
+                    <span className="text-navy-400">{new Date(e.at).toLocaleString()}</span>
+                  </div>
+                  <span className="text-navy-500">{e.actor}</span>
+                </li>
+              ))}
+            </ul>
           </section>
         )}
       </div>
