@@ -104,6 +104,7 @@ export const clients = pgTable(
     // National ID card image URL (Vercel Blob).
     idCardUrl: text("id_card_url"),
     passwordHash: text("password_hash").notNull(),
+    active: boolean("active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
@@ -253,6 +254,7 @@ export const opsUsers = pgTable(
     passwordHash: text("password_hash").notNull(),
     name: varchar("name", { length: 200 }).notNull(),
     role: opsRoleEnum("role").notNull().default("agent"),
+    active: boolean("active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({

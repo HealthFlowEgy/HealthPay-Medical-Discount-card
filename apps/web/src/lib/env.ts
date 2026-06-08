@@ -23,6 +23,10 @@ export const env = {
   get opsSessionSecret() {
     return required("OPS_SESSION_SECRET");
   },
+  /** Optional gate for staff self-signup; if set, signups must supply it. */
+  get opsSignupCode() {
+    return process.env.OPS_SIGNUP_CODE ?? "";
+  },
   get smsProvider() {
     return (process.env.SMS_PROVIDER ?? "console").toLowerCase();
   },

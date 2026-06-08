@@ -180,6 +180,35 @@ export const portalRequestSchema = z
 export type PortalRequestInput = z.input<typeof portalRequestSchema>;
 export type PortalRequestParsed = z.output<typeof portalRequestSchema>;
 
+export const opsRoleSchema = z.enum(["admin", "agent"]);
+
+/** Open staff self-signup (defaults to agent role). */
+export const opsRegisterSchema = z.object({
+  email: z.string().email(),
+  name: z.string().trim().min(2).max(200),
+  password: z.string().min(8, "Password must be at least 8 characters.").max(100),
+  signupCode: z.string().optional(),
+});
+
+/** Admin creates a staff account. */
+export const opsUserCreateSchema = z.object({
+  email: z.string().email(),
+  name: z.string().trim().min(2).max(200),
+  password: z.string().min(8).max(100),
+  role: opsRoleSchema.default("agent"),
+});
+
+/** Admin updates a staff account (role / active). */
+export const opsUserUpdateSchema = z.object({
+  role: opsRoleSchema.optional(),
+  active: z.boolean().optional(),
+});
+
+/** Admin updates a client account (suspend / reactivate). */
+export const clientUpdateSchema = z.object({
+  active: z.boolean(),
+});
+
 /** Provider directory search (GET /api/v1/providers and ops equivalent). */
 export const providerSearchQuerySchema = z.object({
   governorate: governorateSchema.optional(),

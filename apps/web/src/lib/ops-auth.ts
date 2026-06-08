@@ -10,7 +10,7 @@ import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import { AuthError } from "@healthpay/shared";
+import { AuthError, ConflictError } from "@healthpay/shared";
 import type { Database } from "@healthpay/db";
 import { opsUsers } from "@healthpay/db/schema";
 import { env } from "./env.js";
@@ -40,9 +40,34 @@ export async function verifyCredentials(
     .where(eq(opsUsers.email, email.toLowerCase().trim()))
     .limit(1);
   if (!user) throw new AuthError("Invalid email or password.");
+  if (!user.active) throw new AuthError("This account has been deactivated.");
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) throw new AuthError("Invalid email or password.");
   return { userId: user.id, email: user.email, name: user.name, role: user.role };
+}
+
+/** Create a staff account (self-signup defaults to agent; admins may set role). */
+export async function createOpsUser(
+  db: Database,
+  input: { email: string; name: string; password: string; role: "admin" | "agent" },
+): Promise<OpsSession> {
+  const email = input.email.toLowerCase().trim();
+  const [existing] = await db
+    .select({ id: opsUsers.id })
+    .from(opsUsers)
+    .where(eq(opsUsers.email, email))
+    .limit(1);
+  if (existing) throw new ConflictError("An account with this email already exists.");
+  const [user] = await db
+    .insert(opsUsers)
+    .values({
+      email,
+      name: input.name,
+      passwordHash: await bcrypt.hash(input.password, 10),
+      role: input.role,
+    })
+    .returning();
+  return { userId: user!.id, email: user!.email, name: user!.name, role: user!.role };
 }
 
 export async function createSessionToken(session: OpsSession): Promise<string> {

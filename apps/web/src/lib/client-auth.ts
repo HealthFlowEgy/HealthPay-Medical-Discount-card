@@ -73,6 +73,7 @@ export async function verifyClientCredentials(
     .where(eq(clients.nationalIdHash, sha256Hex(nationalId.trim())))
     .limit(1);
   if (!client) throw new AuthError("Invalid national ID or password.");
+  if (!client.active) throw new AuthError("This account has been suspended.");
   const ok = await bcrypt.compare(password, client.passwordHash);
   if (!ok) throw new AuthError("Invalid national ID or password.");
   return client;
