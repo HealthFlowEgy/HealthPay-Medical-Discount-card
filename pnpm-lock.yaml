@@ -15,6 +15,46 @@ importers:
         specifier: ^2.0.5
         version: 2.1.9(@types/node@22.19.20)
 
+  apps/partner-demo:
+    dependencies:
+      '@healthpay/quote-sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+      '@healthpay/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      next:
+        specifier: 14.2.5
+        version: 14.2.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.5.0
+        version: 22.19.20
+      '@types/react':
+        specifier: ^18.3.3
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ^18.3.0
+        version: 18.3.7(@types/react@18.3.31)
+      autoprefixer:
+        specifier: ^10.4.20
+        version: 10.5.0(postcss@8.5.15)
+      postcss:
+        specifier: ^8.4.41
+        version: 8.5.15
+      tailwindcss:
+        specifier: ^3.4.10
+        version: 3.4.19(tsx@4.22.4)
+      typescript:
+        specifier: ^5.5.4
+        version: 5.9.3
+
   apps/web:
     dependencies:
       '@healthpay/db':

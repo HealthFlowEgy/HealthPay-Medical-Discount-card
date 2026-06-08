@@ -7,11 +7,13 @@
   "sideEffects": false,
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
     "./embed": {
+      "source": "./src/embed.ts",
       "types": "./dist/embed.d.ts",
       "import": "./dist/embed.js",
       "require": "./dist/embed.cjs"
