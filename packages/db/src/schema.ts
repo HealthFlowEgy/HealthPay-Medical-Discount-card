@@ -20,6 +20,7 @@ import {
   integer,
   numeric,
   jsonb,
+  boolean,
   doublePrecision,
   index,
   uniqueIndex,
@@ -87,6 +88,30 @@ export const partners = pgTable(
   }),
 );
 
+// ── Clients (end-user portal accounts) ────────────────────────────────────────
+export const clients = pgTable(
+  "clients",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    fullName: varchar("full_name", { length: 200 }).notNull(),
+    // sha256 of the national ID — unique (one account per ID) + login lookup.
+    nationalIdHash: text("national_id_hash").notNull(),
+    nationalIdEncrypted: text("national_id_encrypted").notNull(),
+    nationalIdLast4: varchar("national_id_last4", { length: 4 }).notNull(),
+    mobileEncrypted: text("mobile_encrypted").notNull(),
+    mobileE164: varchar("mobile_e164", { length: 20 }).notNull(),
+    whatsapp: boolean("whatsapp").notNull().default(true),
+    // National ID card image URL (Vercel Blob).
+    idCardUrl: text("id_card_url"),
+    passwordHash: text("password_hash").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    nationalIdHashIdx: uniqueIndex("clients_national_id_hash_idx").on(t.nationalIdHash),
+    mobileIdx: index("clients_mobile_idx").on(t.mobileE164),
+  }),
+);
+
 // ── Providers (service directory) ─────────────────────────────────────────────
 export const providers = pgTable(
   "providers",
@@ -116,9 +141,11 @@ export const serviceRequests = pgTable(
   "service_requests",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    partnerId: uuid("partner_id")
-      .notNull()
-      .references(() => partners.id, { onDelete: "restrict" }),
+    // A request originates from a partner (SDK/API) OR a portal client.
+    partnerId: uuid("partner_id").references(() => partners.id, { onDelete: "restrict" }),
+    clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
+    // Exact services the member requested (required for portal requests).
+    requestedServices: text("requested_services"),
     // `serviceType` is retained (derived) for back-compat; `providerType` +
     // `specialty` are the richer matching axes from the directory.
     serviceType: serviceTypeEnum("service_type").notNull(),
@@ -155,6 +182,7 @@ export const serviceRequests = pgTable(
   },
   (t) => ({
     partnerIdx: index("service_requests_partner_idx").on(t.partnerId),
+    clientIdx: index("service_requests_client_idx").on(t.clientId),
     statusIdx: index("service_requests_status_idx").on(t.status),
     governorateIdx: index("service_requests_governorate_idx").on(t.governorate),
     serviceTypeIdx: index("service_requests_service_type_idx").on(t.serviceType),
@@ -316,6 +344,8 @@ export type Partner = typeof partners.$inferSelect;
 export type NewPartner = typeof partners.$inferInsert;
 export type Provider = typeof providers.$inferSelect;
 export type NewProvider = typeof providers.$inferInsert;
+export type Client = typeof clients.$inferSelect;
+export type NewClient = typeof clients.$inferInsert;
 export type ServiceRequest = typeof serviceRequests.$inferSelect;
 export type NewServiceRequest = typeof serviceRequests.$inferInsert;
 export type PricingOption = typeof pricingOptions.$inferSelect;

@@ -1,6 +1,6 @@
 /** Provider directory search (service matching). */
 
-import { and, eq, or, ilike, asc, sql, type SQL } from "drizzle-orm";
+import { and, eq, or, ilike, asc, sql, isNotNull, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { providerSearchQuerySchema, ValidationError } from "@healthpay/shared";
 import { type Database } from "@healthpay/db";
@@ -57,4 +57,14 @@ export async function searchProviders(db: Database, q: ProviderSearchQuery) {
     .offset((q.page - 1) * q.pageSize);
 
   return { items, total, page: q.page, pageSize: q.pageSize };
+}
+
+/** Distinct areas within a governorate (for the cascading address dropdown). */
+export async function listAreas(db: Database, governorate: string): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ area: providers.area })
+    .from(providers)
+    .where(and(eq(providers.governorate, governorate as never), isNotNull(providers.area)))
+    .orderBy(asc(providers.area));
+  return rows.map((r) => r.area).filter((a): a is string => !!a);
 }

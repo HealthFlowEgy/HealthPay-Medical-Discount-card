@@ -23,6 +23,7 @@ export const REQUEST_STATUSES = [
   "pending_quote",
   "quoted",
   "confirmed",
+  "completed",
   "expired",
   "cancelled",
 ] as const;
@@ -33,7 +34,9 @@ export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 export const TRANSITIONS: Record<RequestStatus, readonly RequestStatus[]> = {
   pending_quote: ["quoted", "cancelled"],
   quoted: ["confirmed", "expired", "cancelled"],
-  confirmed: [],
+  // After the user confirms, ops can mark the service completed or cancel it.
+  confirmed: ["completed", "cancelled"],
+  completed: [],
   expired: [],
   cancelled: [],
 };
@@ -49,6 +52,10 @@ export const TRANSITION_EVENTS: Partial<
   quoted: {
     confirmed: "request.confirmed",
     expired: "request.expired",
+    cancelled: "request.cancelled",
+  },
+  confirmed: {
+    completed: "request.completed",
     cancelled: "request.cancelled",
   },
 };

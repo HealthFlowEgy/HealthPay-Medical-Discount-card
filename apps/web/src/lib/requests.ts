@@ -13,7 +13,15 @@ import {
   type CreateRequestParsed,
   type PricingOptionInput,
 } from "@healthpay/shared";
-import { encryptPii, type Database, type Partner, type ServiceRequest } from "@healthpay/db";
+import {
+  encryptPii,
+  decryptPii,
+  type Database,
+  type Partner,
+  type Client,
+  type ServiceRequest,
+} from "@healthpay/db";
+import type { PortalRequestParsed } from "@healthpay/shared";
 import {
   serviceRequests,
   pricingOptions,
@@ -110,6 +118,81 @@ export async function createServiceRequest(
   return { request, quoteUrl };
 }
 
+/** Create a service request from an authenticated portal client. */
+export async function createClientRequest(
+  db: Database,
+  client: Client,
+  input: PortalRequestParsed,
+): Promise<CreatedRequest> {
+  const { token, tokenHash, expiresAt } = createQuoteToken();
+  const providerType =
+    input.providerType ??
+    (input.serviceType ? serviceTypeToProviderType(input.serviceType) : undefined);
+  const serviceType =
+    input.serviceType ?? (providerType ? providerTypeToServiceType(providerType) : undefined);
+  if (!serviceType || !providerType) {
+    throw new ValidationError("Provide either `providerType` or `serviceType`.");
+  }
+
+  // Gender is derivable from the client's national ID (decrypt their own data).
+  let gender: "male" | "female" | undefined;
+  try {
+    const nid = validateNationalId(decryptPii(client.nationalIdEncrypted));
+    if (nid.ok) gender = nid.parsed.gender;
+  } catch {
+    /* leave undefined */
+  }
+
+  const [request] = await db
+    .insert(serviceRequests)
+    .values({
+      clientId: client.id,
+      partnerId: null,
+      serviceType,
+      providerType,
+      specialty: input.specialty,
+      governorate: input.governorate,
+      area: input.area,
+      city: input.city,
+      providerId: input.providerId,
+      requestedServices: input.requestedServices,
+      nationalIdEncrypted: client.nationalIdEncrypted,
+      nationalIdLast4: client.nationalIdLast4,
+      mobileEncrypted: client.mobileEncrypted,
+      mobileE164: client.mobileE164,
+      memberNameAr: client.fullName,
+      gender,
+      status: "pending_quote",
+      note: input.note,
+      quoteTokenHash: tokenHash,
+      quoteExpiresAt: expiresAt,
+    })
+    .returning();
+  if (!request) throw new Error("Failed to create request.");
+
+  await writeAudit(db, {
+    actorType: "user",
+    actorId: client.id,
+    action: "request.created",
+    requestId: request.id,
+    metadata: { source: "portal", serviceType, governorate: request.governorate },
+  });
+  publishOpsEvent({
+    type: "request.created",
+    requestId: request.id,
+    status: request.status,
+    at: new Date().toISOString(),
+  });
+
+  const quoteUrl = buildQuoteUrl(token);
+  try {
+    await sendQuoteLinkSms(db, request.id, request.mobileE164, quoteUrl);
+  } catch (err) {
+    console.error("Quote SMS failed:", err);
+  }
+  return { request, quoteUrl };
+}
+
 export async function getRequestById(
   db: Database,
   id: string,
@@ -120,6 +203,15 @@ export async function getRequestById(
     .where(eq(serviceRequests.id, id))
     .limit(1);
   return row;
+}
+
+/** A client's own requests (newest first). */
+export async function getClientRequests(db: Database, clientId: string) {
+  return db
+    .select()
+    .from(serviceRequests)
+    .where(eq(serviceRequests.clientId, clientId))
+    .orderBy(desc(serviceRequests.createdAt));
 }
 
 /** Look up a request by its hosted-page token (compared by hash). */

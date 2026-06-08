@@ -124,7 +124,8 @@ export const STATUS_LABELS: Record<RequestStatus, { en: string; ar: string }> = 
   pending_quote: { en: "pending quote", ar: "بانتظار التسعير" },
   quoted: { en: "quoted", ar: "تم التسعير" },
   confirmed: { en: "confirmed", ar: "مؤكد" },
-  expired: { en: "expired", ar: "منتهي" },
+  completed: { en: "completed", ar: "منتهي" },
+  expired: { en: "expired", ar: "منتهية الصلاحية" },
   cancelled: { en: "cancelled", ar: "ملغي" },
 };
 

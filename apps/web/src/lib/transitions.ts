@@ -62,7 +62,9 @@ export async function transitionRequest(
     metadata: { from: result.from, to: result.to, ...ctx.metadata },
   });
 
-  if (result.event) {
+  // Webhooks only apply to partner-originated requests; portal (client) requests
+  // have no partner endpoint.
+  if (result.event && updated.partnerId) {
     await enqueueWebhook(db, {
       partnerId: updated.partnerId,
       requestId: updated.id,

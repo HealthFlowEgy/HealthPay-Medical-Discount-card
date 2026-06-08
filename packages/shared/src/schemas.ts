@@ -13,6 +13,7 @@ import { SPECIALTIES } from "./specialties.js";
 import { GENDERS, MARITAL_STATUSES } from "./member.js";
 import { validateNationalId } from "./national-id.js";
 import { normalizeEgyptianMobile } from "./mobile.js";
+import { validateFullName } from "./name.js";
 import { validatePricing, DEFAULT_CURRENCY } from "./pricing.js";
 import { REQUEST_STATUSES } from "./state-machine.js";
 
@@ -65,6 +66,8 @@ export const createRequestSchema = z
     providerId: z.string().uuid().optional(),
     nationalId: nationalIdSchema,
     mobile: mobileSchema,
+    /** Exact services requested (optional for partners, required in the portal). */
+    requestedServices: z.string().trim().max(1000).optional(),
     // Member intake (from the "أسئلة اساسية" sheet). Name/company/marital are
     // captured here; gender + DOB are also derivable from the national ID.
     memberNameEn: z.string().trim().max(200).optional(),
@@ -122,6 +125,60 @@ export const attachOptionsSchema = z.object({
 export const confirmSchema = z.object({
   optionId: z.string().uuid(),
 });
+
+/** Required "exact services" the member needs (non-empty, not generic). */
+export const requestedServicesSchema = z
+  .string()
+  .trim()
+  .min(3, "Specify the exact services required.")
+  .max(1000);
+
+/** Full (quadruple) name — must match the national ID card. */
+export const fullNameSchema = z.string().transform((v) => v.trim()).superRefine((v, ctx) => {
+  const res = validateFullName(v);
+  if (!res.ok) ctx.addIssue({ code: z.ZodIssueCode.custom, message: res.reason });
+});
+
+/** Client portal registration. */
+export const clientRegisterSchema = z.object({
+  fullName: fullNameSchema,
+  nationalId: nationalIdSchema,
+  mobile: mobileSchema,
+  whatsapp: z.coerce.boolean().default(true),
+  password: z.string().min(8, "Password must be at least 8 characters.").max(100),
+});
+export type ClientRegisterInput = z.input<typeof clientRegisterSchema>;
+
+/** Client portal login (by national ID + password). */
+export const clientLoginSchema = z.object({
+  nationalId: z.string().trim().min(1),
+  password: z.string().min(1),
+});
+
+/** Client portal request (PII comes from the authenticated client account). */
+export const portalRequestSchema = z
+  .object({
+    providerType: providerTypeSchema.optional(),
+    serviceType: serviceTypeSchema.optional(),
+    specialty: specialtySchema.optional(),
+    governorate: governorateSchema,
+    area: z.string().trim().min(1).max(120).optional(),
+    city: z.string().trim().min(1).max(120).optional(),
+    providerId: z.string().uuid().optional(),
+    requestedServices: requestedServicesSchema,
+    note: z.string().trim().max(1000).optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (!v.providerType && !v.serviceType) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Provide either `providerType` or `serviceType`.",
+        path: ["providerType"],
+      });
+    }
+  });
+export type PortalRequestInput = z.input<typeof portalRequestSchema>;
+export type PortalRequestParsed = z.output<typeof portalRequestSchema>;
 
 /** Provider directory search (GET /api/v1/providers and ops equivalent). */
 export const providerSearchQuerySchema = z.object({

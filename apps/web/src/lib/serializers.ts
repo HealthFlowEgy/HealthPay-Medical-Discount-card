@@ -52,6 +52,31 @@ export function serializeRequestForPartner(
   };
 }
 
+/** Client portal view of one of the client's own requests. */
+export function serializeRequestForClient(
+  r: ServiceRequest,
+  options: PricingOption[],
+  selectedOptionId?: string | null,
+) {
+  return {
+    id: r.id,
+    status: r.status,
+    serviceType: r.serviceType,
+    providerType: r.providerType,
+    specialty: r.specialty,
+    governorate: r.governorate,
+    area: r.area,
+    city: r.city,
+    requestedServices: r.requestedServices,
+    note: r.note,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+    expiresAt: r.quoteExpiresAt.toISOString(),
+    options: options.map(serializeOption),
+    selectedOptionId: selectedOptionId ?? null,
+  };
+}
+
 /** Hosted quote-page view — never exposes the national ID; mobile masked. */
 export function serializeRequestForQuotePage(
   r: ServiceRequest,

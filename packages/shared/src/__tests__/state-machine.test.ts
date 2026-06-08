@@ -16,6 +16,8 @@ const LEGAL: Array<[RequestStatus, RequestStatus]> = [
   ["quoted", "confirmed"],
   ["quoted", "expired"],
   ["quoted", "cancelled"],
+  ["confirmed", "completed"],
+  ["confirmed", "cancelled"],
 ];
 
 describe("state machine — legal transitions", () => {
@@ -31,6 +33,8 @@ describe("state machine — legal transitions", () => {
     expect(eventForTransition("quoted", "expired")).toBe("request.expired");
     expect(eventForTransition("quoted", "cancelled")).toBe("request.cancelled");
     expect(eventForTransition("pending_quote", "cancelled")).toBe("request.cancelled");
+    expect(eventForTransition("confirmed", "completed")).toBe("request.completed");
+    expect(eventForTransition("confirmed", "cancelled")).toBe("request.cancelled");
   });
 });
 
@@ -54,7 +58,7 @@ describe("state machine — illegal transitions", () => {
   });
 
   it("rejects transitions out of terminal states", () => {
-    for (const terminal of ["confirmed", "expired", "cancelled"] as const) {
+    for (const terminal of ["completed", "expired", "cancelled"] as const) {
       expect(isTerminal(terminal)).toBe(true);
       for (const to of REQUEST_STATUSES) {
         if (to === terminal) continue;
@@ -71,10 +75,11 @@ describe("state machine — illegal transitions", () => {
 });
 
 describe("state machine — structure", () => {
-  it("only pending_quote and quoted are non-terminal", () => {
+  it("pending_quote, quoted and confirmed are non-terminal", () => {
     expect(isTerminal("pending_quote")).toBe(false);
     expect(isTerminal("quoted")).toBe(false);
-    expect(TRANSITIONS.confirmed).toHaveLength(0);
+    expect(isTerminal("confirmed")).toBe(false);
+    expect(TRANSITIONS.completed).toHaveLength(0);
     expect(TRANSITIONS.expired).toHaveLength(0);
     expect(TRANSITIONS.cancelled).toHaveLength(0);
   });

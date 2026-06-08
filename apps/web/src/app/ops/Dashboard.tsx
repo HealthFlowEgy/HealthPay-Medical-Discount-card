@@ -39,6 +39,7 @@ const STATUS_STYLES: Record<RequestStatus, string> = {
   pending_quote: "bg-gold-400/20 text-gold-500 border-gold-500/40",
   quoted: "bg-teal-50 text-teal-600 border-teal-500/40",
   confirmed: "bg-emerald-50 text-emerald-700 border-emerald-500/40",
+  completed: "bg-navy-100 text-navy-800 border-navy-800/30",
   expired: "bg-gray-100 text-gray-500 border-gray-300",
   cancelled: "bg-red-50 text-red-600 border-red-300",
 };

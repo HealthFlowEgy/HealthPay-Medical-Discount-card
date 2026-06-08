@@ -30,11 +30,13 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     if (!request) throw new NotFoundError("Request not found.");
     request = await expireRequestIfDue(db, request);
 
-    const [partner] = await db
-      .select({ id: partners.id, name: partners.name })
-      .from(partners)
-      .where(eq(partners.id, request.partnerId))
-      .limit(1);
+    const [partner] = request.partnerId
+      ? await db
+          .select({ id: partners.id, name: partners.name })
+          .from(partners)
+          .where(eq(partners.id, request.partnerId))
+          .limit(1)
+      : [undefined];
 
     const options = await getOptions(db, request.id);
     const confirmation = await getConfirmation(db, request.id);

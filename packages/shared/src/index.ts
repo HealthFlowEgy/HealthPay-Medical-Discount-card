@@ -5,6 +5,7 @@ export * from "./service-type.js";
 export * from "./provider-types.js";
 export * from "./specialties.js";
 export * from "./member.js";
+export * from "./name.js";
 export * from "./national-id.js";
 export * from "./mobile.js";
 export * from "./pricing.js";
