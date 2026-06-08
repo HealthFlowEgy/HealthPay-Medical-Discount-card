@@ -12,11 +12,25 @@ confirmation, and surfaces the confirmed request back to operations.
 > flow, never a claim. **No clinical or diagnosis data is collected**; the only
 > medical attribute captured is a service category.
 
+## Live deployment
+
+| App | URL |
+| --- | --- |
+| HealthPay (API, ops dashboard, hosted quote page) | https://health-pay-medical-discount-card-we-two.vercel.app |
+| MediBook (third-party partner demo) | https://medibook-partner-demo.vercel.app |
+
+`apps/partner-demo` ("MediBook") is a fake partner platform that drives the full
+cycle through the SDK: request pricing → poll status → show options → confirm →
+receive signed webhooks. Run it locally with `pnpm --filter @healthpay/partner-demo dev`
+(set `HEALTHPAY_BASE_URL`, `HEALTHPAY_API_KEY`, `HEALTHPAY_API_SECRET`,
+`HEALTHPAY_WEBHOOK_SECRET`, `NEXT_PUBLIC_HEALTHPAY_URL`).
+
 ## Monorepo layout (pnpm workspaces)
 
 ```
 apps/
-  web/        # Next.js: REST API, ops dashboard, hosted quote page   (upcoming)
+  web/          # Next.js: REST API, ops dashboard, hosted quote page
+  partner-demo/ # "MediBook" — a third-party partner app using the SDK end-to-end
 packages/
   sdk/        # @healthpay/quote-sdk — publishable TypeScript SDK      (upcoming)
   db/         # Drizzle schema + migrations + seed + PII encryption
