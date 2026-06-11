@@ -31,9 +31,16 @@ export interface SmsProvider {
   send(input: SmsSendInput): Promise<SmsSendResult>;
 }
 
-/** True if the text contains non-ASCII (e.g. Arabic) characters → needs unicode. */
-function isUnicode(text: string): boolean {
-  return /[^\x00-\x7F]/u.test(text);
+/**
+ * Choose the CEQUENS messageType. CEQUENS rejects Latin letters in `unicode`
+ * mode ("Invalid Unicode data"), but accepts everything in `text` mode (it
+ * auto-encodes). So use `unicode` only for pure non-Latin (Arabic) text, and
+ * `text` for Latin-only or mixed Arabic+Latin messages (e.g. with a URL).
+ */
+function cequensMessageType(text: string): "text" | "unicode" {
+  const hasNonAscii = /[^\x00-\x7F]/u.test(text);
+  const hasLatin = /[A-Za-z]/.test(text);
+  return hasNonAscii && !hasLatin ? "unicode" : "text";
 }
 
 /** Best-effort extraction of a message id from an unknown provider response. */
@@ -82,7 +89,7 @@ class CequensSmsProvider implements SmsProvider {
       messageText: input.body,
       senderName,
       recipients,
-      messageType: isUnicode(input.body) ? "unicode" : "text",
+      messageType: cequensMessageType(input.body),
     };
     if (input.clientMessageId) {
       // CEQUENS clientMessageId is numeric; coerce when possible.
