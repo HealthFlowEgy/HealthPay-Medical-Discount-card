@@ -1,6 +1,6 @@
 {
   "name": "@healthpay/quote-sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Official TypeScript SDK for the HealthPay Quote Engine — request medical-discount pricing, poll status, and verify webhooks.",
   "license": "UNLICENSED",
   "type": "module",

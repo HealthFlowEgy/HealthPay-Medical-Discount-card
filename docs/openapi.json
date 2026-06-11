@@ -175,6 +175,10 @@
               "mobile": {
                 "type": "string"
               },
+              "requestedServices": {
+                "type": "string",
+                "maxLength": 1000
+              },
               "memberNameEn": {
                 "type": "string",
                 "maxLength": 200
@@ -235,6 +239,9 @@
                     "providerId": {
                       "type": "string",
                       "format": "uuid"
+                    },
+                    "isAlternative": {
+                      "type": "boolean"
                     },
                     "providerName": {
                       "type": "string",
@@ -303,6 +310,9 @@
               "providerId": {
                 "type": "string",
                 "format": "uuid"
+              },
+              "isAlternative": {
+                "type": "boolean"
               },
               "providerName": {
                 "type": "string",

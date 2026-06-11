@@ -68,11 +68,40 @@ await hp.requests.create({
   specialty: "labs",
   location: { governorate: "Cairo", area: "Nasr City" },
   providerId: items[0]?.id,
+  requestedServices: "CBC, Fasting glucose, Creatinine", // the exact services
   nationalId: "30101010123451",
   mobile: "+201001234567",
   memberNameAr: "أحمد منصور",
   memberNameEn: "Ahmed Mansour",
 });
+```
+
+## Request lifecycle & statuses
+
+`RequestStatus` is one of:
+
+```
+pending_quote → quoted → confirmed → completed
+                  ↘ expired   (any active state) ↘ cancelled
+```
+
+- `pending_quote` — created; HealthPay ops are attaching pricing options.
+- `quoted` — options are available (`hp.requests.get(id).options`); the member can confirm.
+- `confirmed` — the member selected one option (`selectedOptionId`).
+- `completed` — ops marked the confirmed service as fulfilled (terminal).
+- `expired` / `cancelled` — terminal.
+
+### Alternative offers
+
+A pricing option may be flagged `isAlternative: true` when ops propose a
+**different provider** than the one the member originally chose (e.g. the service
+isn't available there). Surface these clearly to the member as alternatives:
+
+```ts
+const r = await hp.requests.get(req.id);
+for (const o of r.options ?? []) {
+  if (o.isAlternative) console.log("Alternative:", o.providerName, o.discountedPrice);
+}
 ```
 
 ## Bilingual labels (Arabic / English)
@@ -113,7 +142,8 @@ app.post("/healthpay/webhook", express.raw({ type: "*/*" }), async (req, res) =>
   );
   if (!ok) return res.status(400).end();
   const event = JSON.parse(req.body.toString("utf8"));
-  // event.event: "request.quoted" | "request.confirmed" | "request.expired" | "request.cancelled"
+  // event.event (WebhookEvent): "request.quoted" | "request.confirmed"
+  //   | "request.completed" | "request.expired" | "request.cancelled"
   res.json({ received: true });
 });
 ```

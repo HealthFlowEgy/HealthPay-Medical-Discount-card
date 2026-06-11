@@ -36,6 +36,7 @@ export function serializeRequestForPartner(
     area: r.area,
     city: r.city,
     providerId: r.providerId,
+    requestedServices: r.requestedServices,
     mobile: maskMobile(r.mobileE164),
     nationalIdLast4: r.nationalIdLast4,
     memberNameEn: r.memberNameEn,

@@ -103,7 +103,7 @@ Poll status with `GET /api/v1/requests/:id` (sign with an empty body).
 
 ## 5. Receiving webhooks
 
-We POST `request.quoted`, `request.confirmed`, `request.expired`,
+We POST `request.quoted`, `request.confirmed`, `request.completed`, `request.expired`,
 `request.cancelled` to your webhook URL. Always verify the signature before
 trusting the payload.
 

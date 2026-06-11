@@ -36,8 +36,17 @@ export type RequestStatus =
   | "pending_quote"
   | "quoted"
   | "confirmed"
+  | "completed"
   | "expired"
   | "cancelled";
+
+/** Webhook event names HealthPay delivers to a partner's webhook_url. */
+export type WebhookEvent =
+  | "request.quoted"
+  | "request.confirmed"
+  | "request.completed"
+  | "request.expired"
+  | "request.cancelled";
 
 export interface CreateRequestInput {
   /** Primary matching axis (8 directory provider types). */
@@ -55,6 +64,8 @@ export interface CreateRequestInput {
   };
   /** Optional pre-selected directory provider id. */
   providerId?: string;
+  /** Exact services the member requested (free text; comma-separated). */
+  requestedServices?: string;
   nationalId: string;
   mobile: string;
   memberNameEn?: string;
@@ -104,6 +115,10 @@ export interface CreatedRequest {
 
 export interface PricingOption {
   id: string;
+  /** Linked directory provider, if any. */
+  providerId: string | null;
+  /** True when this is an alternative to the provider the member originally chose. */
+  isAlternative: boolean;
   providerName: string;
   providerAddress: string | null;
   serviceDescription: string;
@@ -125,6 +140,7 @@ export interface ServiceRequest {
   area: string | null;
   city: string | null;
   providerId?: string | null;
+  requestedServices?: string | null;
   mobile: string; // masked
   nationalIdLast4: string;
   memberNameEn?: string | null;

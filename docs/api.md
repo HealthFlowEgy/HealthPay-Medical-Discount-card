@@ -142,7 +142,8 @@ A pricing option requires `providerName`, `serviceDescription`, `listPrice`,
 ## Webhooks
 
 Configured per partner (`webhook_url` + `webhook_secret`). Events:
-`request.quoted`, `request.confirmed`, `request.expired`, `request.cancelled`.
+`request.quoted`, `request.confirmed`, `request.completed`, `request.expired`,
+`request.cancelled`.
 
 Each delivery includes:
 
@@ -164,5 +165,10 @@ pending_quote → cancelled
 quoted        → confirmed  (user selects exactly one option)
 quoted        → expired    (validity window elapses; default 48h)
 quoted        → cancelled
-confirmed / expired / cancelled = terminal
+confirmed     → completed  (ops mark the service fulfilled)
+confirmed     → cancelled
+completed / expired / cancelled = terminal
 ```
+
+A pricing option may carry `isAlternative: true` — proposed at a **different
+provider** than the one the member chose (surface it clearly as an alternative).
