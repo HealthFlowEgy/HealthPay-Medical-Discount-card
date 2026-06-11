@@ -48,7 +48,7 @@ function extractMessageId(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
   const seen = new Set<unknown>();
   const stack: unknown[] = [payload];
-  const KEYS = ["messageId", "message_id", "cequensMessageId", "id", "msgId"];
+  const KEYS = ["SMSId", "messageId", "message_id", "cequensMessageId", "id", "msgId"];
   while (stack.length) {
     const cur = stack.pop();
     if (!cur || typeof cur !== "object" || seen.has(cur)) continue;
