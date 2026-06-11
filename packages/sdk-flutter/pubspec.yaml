@@ -1,0 +1,23 @@
+name: healthpay_quote_sdk
+description: >-
+  Flutter SDK for the HealthPay Quote Engine — a drop-in medical-discount quote
+  flow (public-token mode) plus a headless client.
+version: 0.1.0
+# Private SDK. Remove `publish_to` (or point it at your private registry) to publish.
+publish_to: none
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
