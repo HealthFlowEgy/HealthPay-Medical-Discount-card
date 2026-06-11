@@ -42,17 +42,23 @@ export async function searchProviders(db: Database, q: ProviderSearchQuery) {
   }
   const where = filters.length ? and(...filters) : undefined;
 
+  // The source directory repeats a provider once per specialty/service it
+  // offers, so the same clinic appears many times per area. Collapse to one
+  // row per (governorate, area, name) for clean dropdowns and accurate counts.
+  const lowerName = sql`lower(${providers.name})`;
+  const dedupKey = sql<string>`lower(${providers.name}) || '|' || coalesce(${providers.area}, '') || '|' || coalesce(${providers.governorate}::text, '')`;
+
   const countRows = await db
-    .select({ count: sql<number>`count(*)::int` })
+    .select({ count: sql<number>`count(distinct ${dedupKey})::int` })
     .from(providers)
     .where(where);
   const total = countRows[0]?.count ?? 0;
 
   const items = await db
-    .select()
+    .selectDistinctOn([lowerName, providers.area, providers.governorate])
     .from(providers)
     .where(where)
-    .orderBy(asc(providers.name))
+    .orderBy(lowerName, asc(providers.area), asc(providers.governorate))
     .limit(q.pageSize)
     .offset((q.page - 1) * q.pageSize);
 

@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { maskMobile, NotFoundError } from "@healthpay/shared";
 import { decryptPii } from "@healthpay/db";
-import { partners, smsMessages } from "@healthpay/db/schema";
+import { partners, smsMessages, providers } from "@healthpay/db/schema";
 import { getDb } from "@/lib/db";
 import { requireOpsUser } from "@/lib/ops-auth";
 import {
@@ -35,6 +35,20 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
           .select({ id: partners.id, name: partners.name })
           .from(partners)
           .where(eq(partners.id, request.partnerId))
+          .limit(1)
+      : [undefined];
+
+    // The provider the client chose — surfaced prominently in the ops drawer.
+    const [chosenProvider] = request.providerId
+      ? await db
+          .select({
+            id: providers.id,
+            name: providers.name,
+            area: providers.area,
+            address: providers.address,
+          })
+          .from(providers)
+          .where(eq(providers.id, request.providerId))
           .limit(1)
       : [undefined];
 
@@ -80,6 +94,14 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       requestedServices: request.requestedServices,
       servicesNeedsReview: request.servicesNeedsReview,
       providerId: request.providerId,
+      provider: chosenProvider
+        ? {
+            id: chosenProvider.id,
+            name: chosenProvider.name,
+            area: chosenProvider.area,
+            address: chosenProvider.address,
+          }
+        : null,
       clientId: request.clientId,
       lat: request.lat,
       lng: request.lng,

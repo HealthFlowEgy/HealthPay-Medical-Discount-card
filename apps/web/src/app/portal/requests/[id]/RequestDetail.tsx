@@ -10,6 +10,7 @@ import {
 } from "@healthpay/shared";
 import { useI18n } from "@/components/LocaleProvider";
 import { STATUS_LABELS } from "@/lib/i18n";
+import { parseServices } from "@/lib/services-format";
 
 interface Option {
   id: string;
@@ -93,11 +94,18 @@ export default function RequestDetail({ id }: { id: string }) {
       <p className="mt-1 text-sm text-navy-600">
         {L(GOVERNORATE_LABELS[d.governorate])}{d.area ? ` · ${d.area}` : ""}
       </p>
-      {d.requestedServices && (
-        <p className="mt-2 rounded-lg bg-navy-50 px-3 py-2 text-sm text-navy-700">
-          <span className="font-medium">{t("portal.requestedServices")}: </span>
-          {d.requestedServices}
-        </p>
+      {parseServices(d.requestedServices).length > 0 && (
+        <div className="mt-2 rounded-lg bg-navy-50 px-3 py-2 text-sm text-navy-700">
+          <p className="font-medium">{t("portal.requestedServices")}:</p>
+          <ol className="mt-1 space-y-1">
+            {parseServices(d.requestedServices).map((s, i) => (
+              <li key={`${s}-${i}`} className="flex items-start gap-2">
+                <span className="text-xs font-semibold text-navy-400">{i + 1}.</span>
+                <span>{s}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
       )}
 
       {d.status === "pending_quote" && (

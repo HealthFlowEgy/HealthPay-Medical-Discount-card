@@ -229,7 +229,9 @@ export const providerSearchQuerySchema = z.object({
   specialty: specialtySchema.optional(),
   q: z.string().trim().max(120).optional(),
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+  // Cap raised so directory dropdowns can pull the full (deduplicated) list for
+  // a governorate/area without being silently truncated.
+  pageSize: z.coerce.number().int().min(1).max(1000).default(25),
 });
 
 /** Ops queue filters. */

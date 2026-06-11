@@ -79,7 +79,7 @@ export default function NewRequestForm() {
   useEffect(() => {
     if (provider) return; // don't search while one is selected
     const handle = setTimeout(async () => {
-      const p = new URLSearchParams({ governorate, providerType, pageSize: "50" });
+      const p = new URLSearchParams({ governorate, providerType, pageSize: "500" });
       if (area) p.set("area", area);
       if (specialty) p.set("specialty", specialty);
       if (providerQuery.trim()) p.set("q", providerQuery.trim());

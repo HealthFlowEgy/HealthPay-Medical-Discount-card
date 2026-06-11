@@ -16,6 +16,10 @@ describe.skipIf(!hasDb)("Provider directory search", () => {
         { governorate: "Cairo", area: "Nasr City", providerType: "labs", specialty: "labs", specialtyRaw: "معامل تحاليل", name: "TEST Cairo Lab Alpha" },
         { governorate: "Cairo", area: "Maadi", providerType: "dental_clinics", specialty: "dentistry", specialtyRaw: "أسنان", name: "TEST Cairo Dental Beta" },
         { governorate: "Giza", area: "Dokki", providerType: "labs", specialty: "labs", specialtyRaw: "معامل تحاليل", name: "TEST Giza Lab Gamma" },
+        // Duplicates of Alpha (the source directory repeats a provider once per
+        // service it offers). Same name + area → must collapse to a single row.
+        { governorate: "Cairo", area: "Nasr City", providerType: "labs", specialty: "labs", specialtyRaw: "أشعة", name: "TEST Cairo Lab Alpha" },
+        { governorate: "Cairo", area: "Nasr City", providerType: "labs", specialty: "labs", specialtyRaw: "قلب", name: "TEST Cairo Lab Alpha" },
       ])
       .returning();
     ids.push(...rows.map((r) => r.id));
@@ -48,5 +52,18 @@ describe.skipIf(!hasDb)("Provider directory search", () => {
   it("filters by specialty", async () => {
     const res = await searchProviders(getDb(), { specialty: "dentistry", q: "TEST", page: 1, pageSize: 100 });
     expect(res.items.every((p) => p.specialty === "dentistry")).toBe(true);
+  });
+
+  it("deduplicates a provider repeated in the same area", async () => {
+    const res = await searchProviders(getDb(), {
+      governorate: "Cairo",
+      providerType: "labs",
+      q: "TEST Cairo Lab Alpha",
+      page: 1,
+      pageSize: 100,
+    });
+    const alpha = res.items.filter((p) => p.name === "TEST Cairo Lab Alpha");
+    expect(alpha).toHaveLength(1); // 3 rows seeded → 1 returned
+    expect(res.total).toBe(1); // count is distinct, not raw row count
   });
 });

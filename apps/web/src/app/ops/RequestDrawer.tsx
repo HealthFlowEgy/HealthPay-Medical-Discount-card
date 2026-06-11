@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   SERVICE_TYPE_LABELS,
   PROVIDER_TYPE_LABELS,
@@ -16,6 +16,7 @@ import {
 } from "@healthpay/shared";
 import { useI18n } from "@/components/LocaleProvider";
 import { SMS_STATUS_LABELS, STATUS_LABELS } from "@/lib/i18n";
+import { parseServices } from "@/lib/services-format";
 
 interface AuditEntry {
   action: string;
@@ -74,6 +75,22 @@ export default function RequestDrawer({
   const [providerResults, setProviderResults] = useState<DirectoryProvider[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [statusBusy, setStatusBusy] = useState(false);
+  const seededRef = useRef<string | null>(null);
+
+  // The exact services the client selected — drives the option service dropdown.
+  const selectedServices = parseServices(detail?.requestedServices);
+
+  /** A pricing draft pre-filled from the client's chosen provider + a service. */
+  const seedDraft = useCallback((): OptionDraft => {
+    const services = parseServices(detail?.requestedServices);
+    return {
+      ...emptyDraft,
+      providerId: detail?.provider?.id,
+      providerName: detail?.provider?.name ?? "",
+      providerAddress: detail?.provider?.address ?? "",
+      serviceDescription: services[0] ?? "",
+    };
+  }, [detail]);
 
   const load = useCallback(
     async (reveal = false) => {
@@ -120,7 +137,7 @@ export default function RequestDrawer({
   const loadProviders = useCallback(
     async (extraQ = "") => {
       if (!detail) return;
-      const p = new URLSearchParams({ pageSize: "20" });
+      const p = new URLSearchParams({ pageSize: "200" });
       if (detail.governorate) p.set("governorate", detail.governorate);
       if (detail.providerType) p.set("providerType", detail.providerType);
       if (detail.specialty) p.set("specialty", detail.specialty);
@@ -131,11 +148,22 @@ export default function RequestDrawer({
     [detail],
   );
 
+  // Live (type-ahead) provider search: debounce the query and refetch. Fires on
+  // mount with an empty query too, so the matching list loads automatically.
   useEffect(() => {
-    if (detail && (detail.status === "pending_quote" || detail.status === "quoted")) {
-      void loadProviders();
-    }
-  }, [detail, loadProviders]);
+    if (!detail || !(detail.status === "pending_quote" || detail.status === "quoted")) return;
+    const handle = setTimeout(() => void loadProviders(providerQuery.trim()), 250);
+    return () => clearTimeout(handle);
+  }, [providerQuery, detail, loadProviders]);
+
+  // Pre-fill the first pricing draft from the client's chosen provider + service
+  // (once per request), so ops mostly just enter the price.
+  useEffect(() => {
+    if (!detail || !(detail.status === "pending_quote" || detail.status === "quoted")) return;
+    if (seededRef.current === detail.id) return;
+    seededRef.current = detail.id;
+    setDrafts([seedDraft()]);
+  }, [detail, seedDraft]);
 
   async function reveal() {
     setRevealing(true);
@@ -161,6 +189,8 @@ export default function RequestDrawer({
         providerId: p.id,
         providerName: p.name,
         providerAddress: p.address ?? "",
+        // Default the service dropdown to a service the client actually picked.
+        serviceDescription: selectedServices[0] ?? "",
         // A directory provider different from the client's choice = alternative.
         isAlternative: !!detail?.providerId && p.id !== detail.providerId,
       };
@@ -198,7 +228,7 @@ export default function RequestDrawer({
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body?.error?.message ?? "Failed to attach options.");
-      setDrafts([{ ...emptyDraft }]);
+      setDrafts([seedDraft()]);
       await load(false);
       onChanged();
     } catch (err) {
@@ -246,6 +276,19 @@ export default function RequestDrawer({
       </div>
 
       <div className="space-y-6 overflow-y-auto px-6 py-5">
+        {/* Chosen provider — prominent at the top of the detail */}
+        {detail.provider && (
+          <section className="rounded-lg border border-navy-200 bg-navy-50/60 p-4">
+            <p className="text-xs uppercase tracking-wide text-navy-400">{t("drawer.chosenProvider")}</p>
+            <p className="mt-0.5 text-lg font-bold text-navy-900">{detail.provider.name}</p>
+            <p className="text-sm text-navy-500">
+              {[detail.provider.area, detail.provider.address].filter(Boolean).join(" · ") ||
+                detail.area ||
+                ""}
+            </p>
+          </section>
+        )}
+
         {/* Meta */}
         <section className="grid grid-cols-2 gap-3 text-sm">
           <Field label={t("drawer.partner")} value={detail.partner?.name ?? "—"} />
@@ -270,7 +313,17 @@ export default function RequestDrawer({
                 <span className="rounded bg-gold-500 px-1.5 py-0.5 text-[10px] font-bold text-white">⚑ {t("ops.needsReview")}</span>
               )}
             </div>
-            <p className="mt-1 whitespace-pre-wrap text-navy-900">{detail.requestedServices}</p>
+            <ol className="mt-2 space-y-1">
+              {selectedServices.map((s, i) => (
+                <li
+                  key={`${s}-${i}`}
+                  className="flex items-start gap-2 rounded border border-navy-100 bg-white px-2.5 py-1.5 text-sm text-navy-900"
+                >
+                  <span className="mt-0.5 text-xs font-semibold text-navy-400">{i + 1}.</span>
+                  <span>{s}</span>
+                </li>
+              ))}
+            </ol>
           </section>
         )}
 
@@ -440,12 +493,27 @@ export default function RequestDrawer({
                         value={d.providerAddress}
                         onChange={(v) => updateDraft(setDrafts, i, "providerAddress", v)}
                       />
-                      <Input
-                        className="col-span-2"
-                        placeholder={t("drawer.serviceDesc")}
-                        value={d.serviceDescription}
-                        onChange={(v) => updateDraft(setDrafts, i, "serviceDescription", v)}
-                      />
+                      {selectedServices.length > 0 ? (
+                        <select
+                          className="col-span-2 rounded-md border border-navy-100 px-2.5 py-1.5 text-sm outline-none focus:border-teal-500"
+                          value={d.serviceDescription}
+                          onChange={(e) => updateDraft(setDrafts, i, "serviceDescription", e.target.value)}
+                        >
+                          <option value="">{t("drawer.selectService")}</option>
+                          {selectedServices.map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <Input
+                          className="col-span-2"
+                          placeholder={t("drawer.serviceDesc")}
+                          value={d.serviceDescription}
+                          onChange={(v) => updateDraft(setDrafts, i, "serviceDescription", v)}
+                        />
+                      )}
                       <Input
                         placeholder={t("drawer.listPrice")}
                         value={d.listPrice}
@@ -496,7 +564,7 @@ export default function RequestDrawer({
             </div>
             <div className="mt-3 flex gap-2">
               <button
-                onClick={() => setDrafts((ds) => [...ds, { ...emptyDraft }])}
+                onClick={() => setDrafts((ds) => [...ds, { ...emptyDraft, serviceDescription: selectedServices[0] ?? "" }])}
                 className="rounded border border-navy-200 px-3 py-1.5 text-sm font-medium text-navy-800 hover:bg-navy-50"
               >
                 {t("drawer.addAnother")}

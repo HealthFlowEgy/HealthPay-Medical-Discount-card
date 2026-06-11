@@ -104,6 +104,8 @@ export const STRINGS: Dict = {
   "drawer.specialty": { en: "Specialty", ar: "التخصص" },
   "drawer.area": { en: "Area", ar: "المنطقة" },
   "drawer.requestedServices": { en: "Requested services", ar: "الخدمات المطلوبة" },
+  "drawer.chosenProvider": { en: "Chosen provider", ar: "مقدم الخدمة المختار" },
+  "drawer.selectService": { en: "Select a service…", ar: "اختر خدمة…" },
   "drawer.markAlternative": { en: "Alternative offer (different provider)", ar: "عرض بديل (مقدم خدمة آخر)" },
   "drawer.contactPii": { en: "Contact details (PII)", ar: "بيانات الاتصال" },
   "drawer.reveal": { en: "Reveal (audited)", ar: "إظهار (مسجّل)" },

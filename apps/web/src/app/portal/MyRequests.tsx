@@ -11,6 +11,7 @@ import {
 } from "@healthpay/shared";
 import { useI18n } from "@/components/LocaleProvider";
 import { STATUS_LABELS } from "@/lib/i18n";
+import { parseServices } from "@/lib/services-format";
 
 interface Req {
   id: string;
@@ -72,8 +73,17 @@ export default function MyRequests({ clientName }: { clientName: string }) {
                     {L(GOVERNORATE_LABELS[r.governorate])}
                     {r.area ? ` · ${r.area}` : ""}
                   </p>
-                  {r.requestedServices && (
-                    <p className="mt-1 truncate text-xs text-navy-400">{r.requestedServices}</p>
+                  {parseServices(r.requestedServices).length > 0 && (
+                    <ul className="mt-1.5 flex flex-wrap gap-1">
+                      {parseServices(r.requestedServices).map((s, i) => (
+                        <li
+                          key={`${s}-${i}`}
+                          className="rounded bg-navy-50 px-2 py-0.5 text-xs text-navy-600"
+                        >
+                          {s}
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
                 <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium ${STATUS_COLOR[r.status] ?? ""}`}>
