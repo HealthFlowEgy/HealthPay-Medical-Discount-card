@@ -263,8 +263,13 @@ export default function RequestDrawer({
 
         {/* Requested services — front and centre for pricing */}
         {detail.requestedServices && (
-          <section className="rounded-lg border-2 border-teal-500/40 bg-teal-50/50 p-4">
-            <h3 className="text-sm font-semibold text-navy-800">{t("drawer.requestedServices")}</h3>
+          <section className={`rounded-lg border-2 p-4 ${detail.servicesNeedsReview ? "border-gold-500 bg-gold-400/10" : "border-teal-500/40 bg-teal-50/50"}`}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-navy-800">{t("drawer.requestedServices")}</h3>
+              {detail.servicesNeedsReview && (
+                <span className="rounded bg-gold-500 px-1.5 py-0.5 text-[10px] font-bold text-white">⚑ {t("ops.needsReview")}</span>
+              )}
+            </div>
             <p className="mt-1 whitespace-pre-wrap text-navy-900">{detail.requestedServices}</p>
           </section>
         )}

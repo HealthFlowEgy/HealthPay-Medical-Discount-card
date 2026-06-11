@@ -179,6 +179,8 @@ export const serviceRequests = pgTable(
     clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
     // Exact services the member requested (required for portal requests).
     requestedServices: text("requested_services"),
+    // Set when the member used the "Other (not listed)" service path → review.
+    servicesNeedsReview: boolean("services_needs_review").notNull().default(false),
     // `serviceType` is retained (derived) for back-compat; `providerType` +
     // `specialty` are the richer matching axes from the directory.
     serviceType: serviceTypeEnum("service_type").notNull(),

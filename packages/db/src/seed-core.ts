@@ -19,6 +19,7 @@ import {
 } from "@healthpay/shared";
 import type { Database } from "./client.js";
 import { encryptPii } from "./crypto.js";
+import { SERVICE_CATALOG_DATA } from "./embedded.js";
 import {
   partners,
   providers,
@@ -30,16 +31,12 @@ import {
 } from "./schema.js";
 
 /** Fallback service catalog by provider type (used until per-provider data is imported). */
-const SERVICE_CATALOG: Record<ProviderType, string[]> = {
-  labs: ["صورة دم كاملة", "سكر صائم", "سكر تراكمي", "وظائف كبد", "وظائف كلى", "كرياتينين", "يوريا", "صورة دهون", "بول كامل", "فيتامين د", "وظائف الغدة الدرقية"],
-  radiology_centers: ["أشعة عادية", "أشعة بالصبغة", "موجات صوتية (سونار)", "أشعة مقطعية CT", "رنين مغناطيسي MRI", "ماموجرام", "بانوراما أسنان"],
-  dental_clinics: ["كشف", "حشو", "خلع", "تنظيف وتلميع", "علاج جذور", "تركيبات", "تقويم", "تبييض"],
-  physiotherapy_centers: ["جلسة علاج طبيعي", "تأهيل", "علاج كهربائي", "علاج بالموجات", "تدليك علاجي"],
-  doctors_clinics: ["كشف", "استشارة", "إعادة كشف", "متابعة"],
-  hospital: ["كشف طوارئ", "حجز غرفة", "عملية", "إقامة يومية", "رعاية مركزة"],
-  outpatient_clinic_centers: ["كشف", "استشارة", "متابعة"],
-  specialized_centers_outpatient: ["كشف تخصصي", "إجراء", "متابعة"],
-};
+async function insertServiceCatalog(db: Database): Promise<number> {
+  for (let i = 0; i < SERVICE_CATALOG_DATA.length; i += 1000) {
+    await db.insert(serviceCatalog).values(SERVICE_CATALOG_DATA.slice(i, i + 1000));
+  }
+  return SERVICE_CATALOG_DATA.length;
+}
 
 export interface ProviderSeedRow {
   governorate: Governorate | null;
@@ -107,17 +104,14 @@ const SAMPLE_NAMES: Array<[string, string, string]> = [
   ["Laila Fouad", "ليلى فؤاد", "Suez Logistics"],
 ];
 
-/** Populate the fallback service catalog if empty (idempotent; preserves data). */
+/** Sync the service catalog from the reference data (replace when it differs). */
 export async function ensureServiceCatalog(db: Database): Promise<number> {
   const [row] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(serviceCatalog);
-  if ((row?.count ?? 0) > 0) return 0;
-  const rows = Object.entries(SERVICE_CATALOG).flatMap(([providerType, names]) =>
-    names.map((name, i) => ({ providerType: providerType as ProviderType, name, sort: i })),
-  );
-  await db.insert(serviceCatalog).values(rows);
-  return rows.length;
+  if ((row?.count ?? 0) === SERVICE_CATALOG_DATA.length) return 0;
+  await db.delete(serviceCatalog);
+  return insertServiceCatalog(db);
 }
 
 /** Idempotent full seed: clears app tables, loads providers + demo data. */
@@ -135,11 +129,8 @@ export async function seedAll(
   await db.delete(partners);
   await db.delete(opsUsers);
 
-  // Fallback service catalog by provider type.
-  const catalogRows = Object.entries(SERVICE_CATALOG).flatMap(([providerType, names]) =>
-    names.map((name, i) => ({ providerType: providerType as ProviderType, name, sort: i })),
-  );
-  await db.insert(serviceCatalog).values(catalogRows);
+  // Service catalog (reference data).
+  await insertServiceCatalog(db);
 
   // Providers directory (batched).
   const batch = 500;

@@ -78,6 +78,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       area: request.area,
       city: request.city,
       requestedServices: request.requestedServices,
+      servicesNeedsReview: request.servicesNeedsReview,
       providerId: request.providerId,
       clientId: request.clientId,
       lat: request.lat,

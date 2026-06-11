@@ -157,6 +157,7 @@ export async function createClientRequest(
       city: input.city,
       providerId: input.providerId,
       requestedServices: input.requestedServices,
+      servicesNeedsReview: input.servicesNeedsReview ?? false,
       nationalIdEncrypted: client.nationalIdEncrypted,
       nationalIdLast4: client.nationalIdLast4,
       mobileEncrypted: client.mobileEncrypted,

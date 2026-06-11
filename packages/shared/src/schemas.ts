@@ -168,6 +168,8 @@ export const portalRequestSchema = z
     city: z.string().trim().min(1).max(120).optional(),
     providerId: z.string().uuid().optional(),
     requestedServices: requestedServicesSchema,
+    /** Set when an "Other (not listed)" service was entered manually. */
+    servicesNeedsReview: z.coerce.boolean().optional(),
     note: z.string().trim().max(1000).optional(),
   })
   .superRefine((v, ctx) => {

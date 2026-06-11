@@ -47,6 +47,7 @@ const exportColumns = {
   memberNameAr: serviceRequests.memberNameAr,
   memberNameEn: serviceRequests.memberNameEn,
   requestedServices: serviceRequests.requestedServices,
+  servicesNeedsReview: serviceRequests.servicesNeedsReview,
   providerName: providers.name,
   partnerReference: serviceRequests.partnerReference,
   partnerName: partners.name,

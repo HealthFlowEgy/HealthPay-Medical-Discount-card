@@ -1,9 +1,35 @@
 /** Predefined services for a provider: per-provider data if imported, else the
  *  fallback catalog keyed by the provider's type. */
 
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull, or } from "drizzle-orm";
+import type { ProviderType, Specialty } from "@healthpay/shared";
 import type { Database } from "@healthpay/db";
 import { providers, providerServices, serviceCatalog } from "@healthpay/db/schema";
+
+/**
+ * Cascading services list for the requested-services dropdown: services for the
+ * chosen provider type, narrowed to the specialty when one is selected
+ * (type-general services with no specialty are always included).
+ */
+export async function getCatalogServices(
+  db: Database,
+  providerType: ProviderType,
+  specialty?: Specialty,
+): Promise<string[]> {
+  const where = specialty
+    ? and(
+        eq(serviceCatalog.providerType, providerType),
+        or(eq(serviceCatalog.specialty, specialty), isNull(serviceCatalog.specialty)),
+      )
+    : eq(serviceCatalog.providerType, providerType);
+  const rows = await db
+    .select({ name: serviceCatalog.name })
+    .from(serviceCatalog)
+    .where(where)
+    .orderBy(asc(serviceCatalog.sort), asc(serviceCatalog.name));
+  // De-dup while preserving order.
+  return [...new Set(rows.map((r) => r.name))];
+}
 
 export interface ProviderServicesResult {
   items: string[];

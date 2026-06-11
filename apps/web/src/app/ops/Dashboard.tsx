@@ -34,6 +34,7 @@ export interface QueueItem {
   memberNameAr: string | null;
   memberNameEn: string | null;
   requestedServices: string | null;
+  servicesNeedsReview?: boolean;
   providerName: string | null;
   partnerReference: string | null;
   partnerName: string | null;
@@ -313,6 +314,7 @@ export default function Dashboard({ user }: { user: OpsSession }) {
                           : L(SERVICE_TYPE_LABELS[it.serviceType]))}
                     </td>
                     <td className="max-w-[14rem] truncate px-4 py-2.5 text-navy-600" title={it.requestedServices ?? ""}>
+                      {it.servicesNeedsReview && <span title={t("ops.needsReview")} className="me-1 text-gold-500">⚑</span>}
                       {it.requestedServices ?? "—"}
                     </td>
                     <td className="px-4 py-2.5">

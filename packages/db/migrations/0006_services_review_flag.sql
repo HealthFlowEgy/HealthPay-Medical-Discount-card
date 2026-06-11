@@ -1,0 +1,1 @@
+ALTER TABLE "service_requests" ADD COLUMN "services_needs_review" boolean DEFAULT false NOT NULL;

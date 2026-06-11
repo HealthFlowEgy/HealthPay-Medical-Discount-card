@@ -39,7 +39,9 @@ export default function NewRequestForm() {
 
   const [catalog, setCatalog] = useState<string[]>([]);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
-  const [manualService, setManualService] = useState("");
+  const [customServices, setCustomServices] = useState<string[]>([]);
+  const [otherOpen, setOtherOpen] = useState(false);
+  const [otherText, setOtherText] = useState("");
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -55,12 +57,23 @@ export default function NewRequestForm() {
       .catch(() => setAreas([]));
   }, [governorate]);
 
-  // Reset provider selection when filters change.
+  // Reset provider selection when matching filters change.
   useEffect(() => {
     setProvider(null);
-    setCatalog([]);
-    setSelectedServices([]);
   }, [providerType, specialty, governorate, area]);
+
+  // CASCADING SERVICES: depend ONLY on provider type (+ specialty).
+  useEffect(() => {
+    setSelectedServices([]);
+    setCustomServices([]);
+    setOtherOpen(false);
+    const p = new URLSearchParams({ providerType });
+    if (specialty) p.set("specialty", specialty);
+    fetch(`/api/v1/portal/services?${p.toString()}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setCatalog(d.items ?? []))
+      .catch(() => setCatalog([]));
+  }, [providerType, specialty]);
 
   // Typeahead provider search (debounced).
   useEffect(() => {
@@ -77,29 +90,29 @@ export default function NewRequestForm() {
     return () => clearTimeout(handle);
   }, [providerQuery, providerType, specialty, governorate, area, provider]);
 
-  const selectProvider = useCallback(async (p: DirProvider) => {
+  const selectProvider = useCallback((p: DirProvider) => {
     setProvider(p);
     setProviderResults([]);
-    const res = await fetch(`/api/v1/portal/providers/${p.id}/services`, { cache: "no-store" });
-    const d = await res.json();
-    setCatalog(d.items ?? []);
   }, []);
 
   function toggleService(name: string) {
     setSelectedServices((s) => (s.includes(name) ? s.filter((x) => x !== name) : [...s, name]));
   }
-  function addManual() {
-    const v = manualService.trim();
-    if (v && !selectedServices.includes(v)) setSelectedServices((s) => [...s, v]);
-    setManualService("");
+  function addOther() {
+    const v = otherText.trim();
+    if (v && !customServices.includes(v)) setCustomServices((s) => [...s, v]);
+    setOtherText("");
   }
+
+  const allServices = [...selectedServices, ...customServices];
+  const needsReview = customServices.length > 0;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (specialtyRequired && !specialty) { setError(t("portal.specialty")); return; }
     if (!provider) { setError(t("portal.selectProvider")); return; }
-    if (selectedServices.length === 0) { setError(t("portal.requestedServicesNote")); return; }
+    if (allServices.length === 0) { setError(t("portal.requestedServicesNote")); return; }
     setLoading(true);
     try {
       const res = await fetch("/api/v1/portal/requests", {
@@ -111,7 +124,8 @@ export default function NewRequestForm() {
           governorate,
           area: area || undefined,
           providerId: provider.id,
-          requestedServices: selectedServices.join("، "),
+          requestedServices: allServices.join("، "),
+          servicesNeedsReview: needsReview,
         }),
       });
       const data = await res.json();
@@ -167,7 +181,7 @@ export default function NewRequestForm() {
                 <p className="truncate font-medium text-navy-900">{provider.name}</p>
                 <p className="truncate text-xs text-navy-500">{provider.area ?? ""}</p>
               </div>
-              <button type="button" onClick={() => { setProvider(null); setCatalog([]); setSelectedServices([]); }} className="text-xs text-teal-600 underline">
+              <button type="button" onClick={() => setProvider(null)} className="text-xs text-teal-600 underline">
                 {t("portal.change")}
               </button>
             </div>
@@ -190,9 +204,13 @@ export default function NewRequestForm() {
           )}
         </Field>
 
-        {/* Predefined services (per selected provider) */}
+        {/* Cascading services (by provider type + specialty). No free text in the
+            main field — manual entry only via the "Other" path. */}
         {provider && (
-          <Field label={`${t("portal.selectServices")} — ${provider.name}`} note={t("portal.requestedServicesNote")}>
+          <Field label={t("portal.selectServices")} note={t("portal.requestedServicesNote")}>
+            {catalog.length === 0 && customServices.length === 0 && !otherOpen && (
+              <p className="mb-2 text-xs text-navy-400">{t("portal.noServicesForType")}</p>
+            )}
             <div className="flex flex-wrap gap-1.5">
               {catalog.map((s) => {
                 const on = selectedServices.includes(s);
@@ -202,13 +220,27 @@ export default function NewRequestForm() {
                   </button>
                 );
               })}
+              {customServices.map((s) => (
+                <button key={s} type="button" onClick={() => setCustomServices((c) => c.filter((x) => x !== s))} className="rounded-full border border-gold-500 bg-gold-400/20 px-2.5 py-1 text-xs text-gold-600">
+                  ★ {s} ✕
+                </button>
+              ))}
+              {/* "Other (not listed)" option at the END of the list */}
+              <button type="button" onClick={() => setOtherOpen((v) => !v)} className={`rounded-full border px-2.5 py-1 text-xs ${otherOpen ? "border-gold-500 bg-gold-500 text-white" : "border-dashed border-gold-500 text-gold-600 hover:bg-gold-400/10"}`}>
+                + {t("portal.other")}
+              </button>
             </div>
-            <div className="mt-2 flex gap-2">
-              <input className="sel" value={manualService} onChange={(e) => setManualService(e.target.value)} placeholder={t("portal.addServiceManual")} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addManual(); } }} />
-              <button type="button" onClick={addManual} className="shrink-0 rounded-lg border border-navy-200 px-3 text-sm text-navy-800 hover:bg-navy-50">{t("portal.add")}</button>
-            </div>
-            {selectedServices.length > 0 && (
-              <p className="mt-2 text-xs text-navy-500">{selectedServices.join("، ")}</p>
+            {otherOpen && (
+              <div className="mt-2">
+                <div className="flex gap-2">
+                  <input className="sel" value={otherText} onChange={(e) => setOtherText(e.target.value)} placeholder={t("portal.otherServiceName")} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addOther(); } }} />
+                  <button type="button" onClick={addOther} className="shrink-0 rounded-lg border border-navy-200 px-3 text-sm text-navy-800 hover:bg-navy-50">{t("portal.add")}</button>
+                </div>
+                <p className="mt-1 text-xs text-gold-600">{t("portal.servicesReviewNote")}</p>
+              </div>
+            )}
+            {allServices.length > 0 && (
+              <p className="mt-2 text-xs text-navy-500">{allServices.join("، ")}</p>
             )}
           </Field>
         )}
