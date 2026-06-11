@@ -80,6 +80,8 @@ export default function RequestDetail({ id }: { id: string }) {
 
   const isQuoted = d.status === "quoted";
   const isConfirmed = d.status === "confirmed" || d.status === "completed";
+  // Services the client originally requested — used to flag provider additions.
+  const originalSet = new Set(parseServices(d.requestedServices));
 
   return (
     <main className="mx-auto max-w-2xl px-5 py-8">
@@ -142,9 +144,25 @@ export default function RequestDetail({ id }: { id: string }) {
                   </div>
                 )}
                 <div className="flex items-start justify-between">
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-semibold text-navy-900">{o.providerName}</p>
-                    <p className="text-sm text-navy-600">{o.serviceDescription}</p>
+                    <ul className="mt-1 space-y-1">
+                      {parseServices(o.serviceDescription).map((s, k) => {
+                        const original = originalSet.has(s);
+                        return (
+                          <li key={k} className="flex items-center gap-1.5 text-sm">
+                            <span className={original ? "text-navy-700" : "text-gold-700"}>• {s}</span>
+                            <span
+                              className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                                original ? "bg-teal-50 text-teal-600" : "bg-gold-400/20 text-gold-600"
+                              }`}
+                            >
+                              {original ? t("portal.yourService") : t("portal.addedService")}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
                     {o.isAlternative && <p className="mt-0.5 text-xs text-gold-600">{t("quote.alternativeNote")}</p>}
                   </div>
                   <div className="text-end">

@@ -30,7 +30,8 @@ interface OptionDraft {
   providerId?: string;
   providerName: string;
   providerAddress: string;
-  serviceDescription: string;
+  /** One offer can cover several services (multi-select + manual additions). */
+  services: string[];
   listPrice: string;
   discountedPrice: string;
   validityNote: string;
@@ -49,7 +50,7 @@ interface DirectoryProvider {
 const emptyDraft: OptionDraft = {
   providerName: "",
   providerAddress: "",
-  serviceDescription: "",
+  services: [],
   listPrice: "",
   discountedPrice: "",
   validityNote: "",
@@ -75,12 +76,16 @@ export default function RequestDrawer({
   const [providerResults, setProviderResults] = useState<DirectoryProvider[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [statusBusy, setStatusBusy] = useState(false);
+  const [editingServices, setEditingServices] = useState(false);
+  const [serviceEdits, setServiceEdits] = useState<string[]>([]);
+  const [savingServices, setSavingServices] = useState(false);
   const seededRef = useRef<string | null>(null);
 
-  // The exact services the client selected — drives the option service dropdown.
+  // The exact services the client selected — pre-fill + suggestions for pricing.
   const selectedServices = parseServices(detail?.requestedServices);
+  const originalServiceSet = new Set(selectedServices);
 
-  /** A pricing draft pre-filled from the client's chosen provider + a service. */
+  /** A pricing draft pre-filled from the client's chosen provider + services. */
   const seedDraft = useCallback((): OptionDraft => {
     const services = parseServices(detail?.requestedServices);
     return {
@@ -88,7 +93,7 @@ export default function RequestDrawer({
       providerId: detail?.provider?.id,
       providerName: detail?.provider?.name ?? "",
       providerAddress: detail?.provider?.address ?? "",
-      serviceDescription: services[0] ?? "",
+      services: [...services],
     };
   }, [detail]);
 
@@ -189,13 +194,13 @@ export default function RequestDrawer({
         providerId: p.id,
         providerName: p.name,
         providerAddress: p.address ?? "",
-        // Default the service dropdown to a service the client actually picked.
-        serviceDescription: selectedServices[0] ?? "",
+        // Pre-select the services the client actually picked.
+        services: [...selectedServices],
         // A directory provider different from the client's choice = alternative.
         isAlternative: !!detail?.providerId && p.id !== detail.providerId,
       };
       // Replace the first fully-empty draft, else append.
-      const idx = ds.findIndex((d) => !d.providerName && !d.serviceDescription && !d.listPrice);
+      const idx = ds.findIndex((d) => !d.providerName && d.services.length === 0 && !d.listPrice);
       if (idx >= 0) return ds.map((d, i) => (i === idx ? draft : d));
       return [...ds, draft];
     });
@@ -204,12 +209,12 @@ export default function RequestDrawer({
   async function submitOptions() {
     setError(null);
     const options = drafts
-      .filter((d) => d.providerName && d.serviceDescription && d.listPrice && d.discountedPrice)
+      .filter((d) => d.providerName && d.services.length > 0 && d.listPrice && d.discountedPrice)
       .map((d) => ({
         providerId: d.providerId,
         providerName: d.providerName,
         providerAddress: d.providerAddress || undefined,
-        serviceDescription: d.serviceDescription,
+        serviceDescription: d.services.join("، "),
         listPrice: Number(d.listPrice),
         discountedPrice: Number(d.discountedPrice),
         validityNote: d.validityNote || undefined,
@@ -243,6 +248,30 @@ export default function RequestDrawer({
     if (res.ok) {
       await load(false);
       onChanged();
+    }
+  }
+
+  function startEditServices() {
+    setServiceEdits(parseServices(detail?.requestedServices));
+    setEditingServices(true);
+  }
+
+  // Ops curates the client's requested services (e.g. dropping unavailable ones).
+  async function saveServices() {
+    setSavingServices(true);
+    try {
+      const res = await fetch(`/api/v1/ops/requests/${requestId}/services`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ services: serviceEdits }),
+      });
+      if (res.ok) {
+        setEditingServices(false);
+        await load(false);
+        onChanged();
+      }
+    } finally {
+      setSavingServices(false);
     }
   }
 
@@ -304,26 +333,62 @@ export default function RequestDrawer({
           {detail.note && <Field label={t("drawer.note")} value={detail.note} className="col-span-2" />}
         </section>
 
-        {/* Requested services — front and centre for pricing */}
-        {detail.requestedServices && (
+        {/* Requested services — front and centre for pricing; ops may curate them */}
+        {(detail.requestedServices || canQuote) && (
           <section className={`rounded-lg border-2 p-4 ${detail.servicesNeedsReview ? "border-gold-500 bg-gold-400/10" : "border-teal-500/40 bg-teal-50/50"}`}>
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-navy-800">{t("drawer.requestedServices")}</h3>
-              {detail.servicesNeedsReview && (
-                <span className="rounded bg-gold-500 px-1.5 py-0.5 text-[10px] font-bold text-white">⚑ {t("ops.needsReview")}</span>
-              )}
+              <div className="flex items-center gap-2">
+                {detail.servicesNeedsReview && (
+                  <span className="rounded bg-gold-500 px-1.5 py-0.5 text-[10px] font-bold text-white">⚑ {t("ops.needsReview")}</span>
+                )}
+                {canQuote && !editingServices && (
+                  <button onClick={startEditServices} className="text-xs font-medium text-teal-600 hover:underline">
+                    ✎ {t("drawer.editServices")}
+                  </button>
+                )}
+              </div>
             </div>
-            <ol className="mt-2 space-y-1">
-              {selectedServices.map((s, i) => (
-                <li
-                  key={`${s}-${i}`}
-                  className="flex items-start gap-2 rounded border border-navy-100 bg-white px-2.5 py-1.5 text-sm text-navy-900"
-                >
-                  <span className="mt-0.5 text-xs font-semibold text-navy-400">{i + 1}.</span>
-                  <span>{s}</span>
-                </li>
-              ))}
-            </ol>
+
+            {editingServices ? (
+              <div className="mt-2">
+                <ServiceMultiSelect
+                  options={selectedServices}
+                  value={serviceEdits}
+                  onChange={setServiceEdits}
+                  t={t}
+                />
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={saveServices}
+                    disabled={savingServices}
+                    className="rounded bg-teal-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-600 disabled:opacity-60"
+                  >
+                    {savingServices ? t("drawer.saving") : t("drawer.saveServices")}
+                  </button>
+                  <button
+                    onClick={() => setEditingServices(false)}
+                    className="rounded border border-navy-200 px-3 py-1.5 text-sm font-medium text-navy-800 hover:bg-navy-50"
+                  >
+                    {t("drawer.cancelEdit")}
+                  </button>
+                </div>
+              </div>
+            ) : selectedServices.length > 0 ? (
+              <ol className="mt-2 space-y-1">
+                {selectedServices.map((s, i) => (
+                  <li
+                    key={`${s}-${i}`}
+                    className="flex items-start gap-2 rounded border border-navy-100 bg-white px-2.5 py-1.5 text-sm text-navy-900"
+                  >
+                    <span className="mt-0.5 text-xs font-semibold text-navy-400">{i + 1}.</span>
+                    <span>{s}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="mt-2 text-sm text-navy-400">{t("drawer.noServicesYet")}</p>
+            )}
           </section>
         )}
 
@@ -396,9 +461,20 @@ export default function RequestDrawer({
                     </div>
                   )}
                   <div className="flex items-start justify-between">
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-medium text-navy-900">{o.providerName}</p>
-                      <p className="text-navy-600">{o.serviceDescription}</p>
+                      <ul className="mt-0.5 space-y-0.5">
+                        {parseServices(o.serviceDescription).map((s: string, k: number) => (
+                          <li key={k} className="flex items-center gap-1.5 text-navy-600">
+                            <span>• {s}</span>
+                            {!originalServiceSet.has(s) && (
+                              <span className="rounded bg-gold-400/30 px-1 py-0.5 text-[9px] font-bold text-gold-600">
+                                + {t("drawer.addedService")}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                     <div className="text-end">
                       <p className="text-navy-400 line-through">{o.listPrice} {o.currency}</p>
@@ -493,27 +569,17 @@ export default function RequestDrawer({
                         value={d.providerAddress}
                         onChange={(v) => updateDraft(setDrafts, i, "providerAddress", v)}
                       />
-                      {selectedServices.length > 0 ? (
-                        <select
-                          className="col-span-2 rounded-md border border-navy-100 px-2.5 py-1.5 text-sm outline-none focus:border-teal-500"
-                          value={d.serviceDescription}
-                          onChange={(e) => updateDraft(setDrafts, i, "serviceDescription", e.target.value)}
-                        >
-                          <option value="">{t("drawer.selectService")}</option>
-                          {selectedServices.map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <Input
-                          className="col-span-2"
-                          placeholder={t("drawer.serviceDesc")}
-                          value={d.serviceDescription}
-                          onChange={(v) => updateDraft(setDrafts, i, "serviceDescription", v)}
+                      <div className="col-span-2">
+                        <p className="mb-1 text-xs font-medium text-navy-600">{t("drawer.servicesInOffer")}</p>
+                        <ServiceMultiSelect
+                          options={selectedServices}
+                          value={d.services}
+                          onChange={(next) =>
+                            setDrafts((ds) => ds.map((x, j) => (j === i ? { ...x, services: next } : x)))
+                          }
+                          t={t}
                         />
-                      )}
+                      </div>
                       <Input
                         placeholder={t("drawer.listPrice")}
                         value={d.listPrice}
@@ -564,7 +630,7 @@ export default function RequestDrawer({
             </div>
             <div className="mt-3 flex gap-2">
               <button
-                onClick={() => setDrafts((ds) => [...ds, { ...emptyDraft, serviceDescription: selectedServices[0] ?? "" }])}
+                onClick={() => setDrafts((ds) => [...ds, { ...emptyDraft, services: [...selectedServices] }])}
                 className="rounded border border-navy-200 px-3 py-1.5 text-sm font-medium text-navy-800 hover:bg-navy-50"
               >
                 {t("drawer.addAnother")}
@@ -640,13 +706,111 @@ export default function RequestDrawer({
   );
 }
 
+type DraftStringKey =
+  | "providerName"
+  | "providerAddress"
+  | "listPrice"
+  | "discountedPrice"
+  | "validityNote";
+
 function updateDraft(
   setDrafts: React.Dispatch<React.SetStateAction<OptionDraft[]>>,
   index: number,
-  key: keyof OptionDraft,
+  key: DraftStringKey,
   value: string,
 ) {
   setDrafts((ds) => ds.map((d, j) => (j === index ? { ...d, [key]: value } : d)));
+}
+
+/**
+ * Multi-select for an offer's services: toggleable suggestions (the client's
+ * picks) + manual additions for services the client didn't request.
+ */
+function ServiceMultiSelect({
+  options,
+  value,
+  onChange,
+  t,
+}: {
+  options: string[];
+  value: string[];
+  onChange: (next: string[]) => void;
+  t: (key: string) => string;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [text, setText] = useState("");
+  const has = (s: string) => value.includes(s);
+  const toggle = (s: string) => onChange(has(s) ? value.filter((x) => x !== s) : [...value, s]);
+  const add = () => {
+    const v = text.trim();
+    if (v && !value.includes(v)) onChange([...value, v]);
+    setText("");
+    setAdding(false);
+  };
+  // Services in the offer that the client did not originally request.
+  const custom = value.filter((v) => !options.includes(v));
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => toggle(s)}
+            className={`rounded-full border px-2.5 py-1 text-xs ${
+              has(s) ? "border-teal-500 bg-teal-500 text-white" : "border-navy-200 text-navy-700 hover:bg-navy-50"
+            }`}
+          >
+            {has(s) ? "✓ " : "+ "}
+            {s}
+          </button>
+        ))}
+        {custom.map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => toggle(s)}
+            className="rounded-full border border-gold-500 bg-gold-400/20 px-2.5 py-1 text-xs text-gold-600"
+          >
+            ★ {s} ✕
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setAdding((v) => !v)}
+          className={`rounded-full border px-2.5 py-1 text-xs ${
+            adding ? "border-gold-500 bg-gold-500 text-white" : "border-dashed border-gold-500 text-gold-600 hover:bg-gold-400/10"
+          }`}
+        >
+          + {t("drawer.addService")}
+        </button>
+      </div>
+      {adding && (
+        <div className="mt-1.5 flex gap-2">
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                add();
+              }
+            }}
+            placeholder={t("drawer.newServiceName")}
+            className="grow rounded-md border border-navy-100 px-2.5 py-1.5 text-sm outline-none focus:border-teal-500"
+          />
+          <button
+            type="button"
+            onClick={add}
+            className="shrink-0 rounded-md border border-navy-200 px-3 text-sm text-navy-800 hover:bg-navy-50"
+          >
+            {t("drawer.add")}
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Shell({
