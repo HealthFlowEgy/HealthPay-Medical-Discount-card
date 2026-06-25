@@ -49,7 +49,7 @@ export const specialtyEnum = pgEnum("specialty", SPECIALTIES);
 export const genderEnum = pgEnum("gender", GENDERS);
 export const maritalStatusEnum = pgEnum("marital_status", MARITAL_STATUSES);
 export const partnerStatusEnum = pgEnum("partner_status", ["active", "suspended"]);
-export const opsRoleEnum = pgEnum("ops_role", ["admin", "agent"]);
+export const opsRoleEnum = pgEnum("ops_role", ["admin", "agent", "super_admin"]);
 export const actorTypeEnum = pgEnum("actor_type", ["partner", "ops", "user", "system"]);
 export const confirmedFromEnum = pgEnum("confirmed_from", ["hosted_page", "sdk"]);
 export const webhookStatusEnum = pgEnum("webhook_status", [
@@ -78,6 +78,9 @@ export const partners = pgTable(
     // API secret is the HMAC signing key → must be recoverable to verify
     // signatures, so it is stored ENCRYPTED at rest (AES-256-GCM), never hashed.
     apiSecretEncrypted: text("api_secret_encrypted").notNull(),
+    // Non-sensitive display hint (e.g. "hp_live_AbC…") so super-admins can
+    // identify a key in the console without exposing the full credential.
+    apiKeyPrefix: text("api_key_prefix"),
     webhookUrl: text("webhook_url"),
     webhookSecret: text("webhook_secret"),
     status: partnerStatusEnum("status").notNull().default("active"),

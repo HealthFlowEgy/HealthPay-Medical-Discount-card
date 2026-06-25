@@ -8,7 +8,7 @@ interface Employee {
   id: string;
   email: string;
   name: string;
-  role: "admin" | "agent";
+  role: "admin" | "agent" | "super_admin";
   active: boolean;
 }
 interface ClientRow {
@@ -120,9 +120,15 @@ function Employees() {
                 <td className="px-4 py-2.5">{u.name}</td>
                 <td className="px-4 py-2.5 font-mono text-xs">{u.email}</td>
                 <td className="px-4 py-2.5">
-                  <select value={u.role} onChange={(e) => patch(u.id, { role: e.target.value })} className="rounded border border-navy-100 px-1.5 py-0.5 text-xs">
+                  <select
+                    value={u.role}
+                    disabled={u.role === "super_admin"}
+                    onChange={(e) => patch(u.id, { role: e.target.value })}
+                    className="rounded border border-navy-100 px-1.5 py-0.5 text-xs disabled:opacity-70"
+                  >
                     <option value="agent">{t("ops.roleAgent")}</option>
                     <option value="admin">{t("ops.roleAdmin")}</option>
+                    <option value="super_admin" disabled>{t("ops.roleSuper")}</option>
                   </select>
                 </td>
                 <td className="px-4 py-2.5">

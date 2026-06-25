@@ -180,7 +180,12 @@ export default function Dashboard({ user }: { user: OpsSession }) {
         </div>
         <div className="flex items-center gap-4 text-sm">
           <LanguageToggle className="text-white" />
-          {user.role === "admin" && (
+          {user.role === "super_admin" && (
+            <Link href="/ops/partners" className="rounded bg-navy-800 px-3 py-1.5 hover:bg-navy-700">
+              {t("ops.partners")}
+            </Link>
+          )}
+          {(user.role === "admin" || user.role === "super_admin") && (
             <Link href="/ops/users" className="rounded bg-navy-800 px-3 py-1.5 hover:bg-navy-700">
               {t("ops.users")}
             </Link>

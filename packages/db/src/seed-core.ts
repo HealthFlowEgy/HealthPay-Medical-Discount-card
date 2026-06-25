@@ -160,7 +160,7 @@ export async function seedAll(
   const [admin] = await db
     .insert(opsUsers)
     .values([
-      { email: "admin@healthpay.test", passwordHash, name: "Ops Admin", role: "admin" },
+      { email: "admin@healthpay.test", passwordHash, name: "Ops Admin", role: "super_admin" },
       { email: "agent@healthpay.test", passwordHash, name: "Ops Agent", role: "agent" },
     ])
     .returning();

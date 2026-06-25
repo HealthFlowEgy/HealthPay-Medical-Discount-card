@@ -18,11 +18,25 @@ import { env } from "./env.js";
 export const OPS_COOKIE = "hp_ops_session";
 const SESSION_TTL_SECONDS = 8 * 3600;
 
+export type OpsRole = "agent" | "admin" | "super_admin";
+
+/** Privilege ranking — higher satisfies lower (super_admin ⊇ admin ⊇ agent). */
+const ROLE_RANK: Record<OpsRole, number> = { agent: 1, admin: 2, super_admin: 3 };
+
+function coerceRole(value: unknown): OpsRole {
+  return value === "super_admin" ? "super_admin" : value === "admin" ? "admin" : "agent";
+}
+
+/** True if `role` meets or exceeds the `min` required role. */
+export function roleAtLeast(role: OpsRole, min: OpsRole): boolean {
+  return ROLE_RANK[role] >= ROLE_RANK[min];
+}
+
 export interface OpsSession {
   userId: string;
   email: string;
   name: string;
-  role: "admin" | "agent";
+  role: OpsRole;
 }
 
 function secretKey(): Uint8Array {
@@ -49,7 +63,7 @@ export async function verifyCredentials(
 /** Create a staff account (self-signup defaults to agent; admins may set role). */
 export async function createOpsUser(
   db: Database,
-  input: { email: string; name: string; password: string; role: "admin" | "agent" },
+  input: { email: string; name: string; password: string; role: OpsRole },
 ): Promise<OpsSession> {
   const email = input.email.toLowerCase().trim();
   const [existing] = await db
@@ -103,17 +117,19 @@ export async function getOpsSession(): Promise<OpsSession | null> {
       userId: String(payload.userId),
       email: String(payload.email),
       name: String(payload.name),
-      role: payload.role === "admin" ? "admin" : "agent",
+      role: coerceRole(payload.role),
     };
   } catch {
     return null;
   }
 }
 
-/** Throw AuthError if not authenticated; optionally require a role. */
-export async function requireOpsUser(role?: "admin"): Promise<OpsSession> {
+/** Throw AuthError if not authenticated; optionally require a minimum role. */
+export async function requireOpsUser(minRole?: OpsRole): Promise<OpsSession> {
   const session = await getOpsSession();
   if (!session) throw new AuthError("Not authenticated.");
-  if (role && session.role !== role) throw new AuthError("Insufficient permissions.");
+  if (minRole && !roleAtLeast(session.role, minRole)) {
+    throw new AuthError("Insufficient permissions.");
+  }
   return session;
 }

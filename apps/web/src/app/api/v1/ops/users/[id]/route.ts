@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
-import { opsUserUpdateSchema, ValidationError, NotFoundError, ConflictError } from "@healthpay/shared";
+import { opsUserUpdateSchema, ValidationError, NotFoundError, ConflictError, AuthError } from "@healthpay/shared";
 import { opsUsers } from "@healthpay/db/schema";
 import { getDb } from "@/lib/db";
-import { requireOpsUser } from "@/lib/ops-auth";
+import { requireOpsUser, roleAtLeast } from "@/lib/ops-auth";
 import { writeAudit } from "@/lib/audit";
 import { json, errorResponse } from "@/lib/http";
 
@@ -22,6 +22,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     const db = getDb();
+
+    // Only a super-admin may modify a super-admin account (no admin can demote
+    // or deactivate one).
+    const [target] = await db
+      .select({ role: opsUsers.role })
+      .from(opsUsers)
+      .where(eq(opsUsers.id, params.id))
+      .limit(1);
+    if (!target) throw new NotFoundError("User not found.");
+    if (target.role === "super_admin" && !roleAtLeast(admin.role, "super_admin")) {
+      throw new AuthError("Only a super-admin can modify a super-admin account.");
+    }
+
     const set: Record<string, unknown> = {};
     if (parsed.data.role !== undefined) set.role = parsed.data.role;
     if (parsed.data.active !== undefined) set.active = parsed.data.active;
