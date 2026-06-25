@@ -56,6 +56,11 @@ export const STRINGS: Dict = {
   "ops.auditTrail": { en: "Audit trail", ar: "سجل التدقيق" },
   "ops.users": { en: "Users", ar: "المستخدمون" },
   "ops.partners": { en: "Partners", ar: "الشركاء" },
+  "ops.setupSuperAdmin": { en: "Set up super-admin", ar: "تفعيل المدير العام" },
+  "ops.superAdminGranted": {
+    en: "You're now a super-admin. Please sign in again to access Partners.",
+    ar: "أصبحت الآن مديرًا عامًا. يرجى تسجيل الدخول مرة أخرى للوصول إلى الشركاء.",
+  },
   "partners.title": { en: "Partners", ar: "الشركاء" },
   "partners.subtitle": {
     en: "Provision partners and manage their API keys.",

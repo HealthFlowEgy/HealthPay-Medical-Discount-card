@@ -145,6 +145,18 @@ export default function Dashboard({ user }: { user: OpsSession }) {
     router.refresh();
   }
 
+  // One-time: an admin claims super-admin (no super-admin exists yet).
+  async function bootstrapSuperAdmin() {
+    const res = await fetch("/api/v1/ops/bootstrap-super-admin", { method: "POST" });
+    const data = await res.json().catch(() => null);
+    if (res.ok) {
+      window.alert(t("ops.superAdminGranted"));
+      await logout();
+    } else {
+      window.alert(data?.error?.message ?? "Failed");
+    }
+  }
+
   async function changeStatus(id: string, status: "completed" | "cancelled") {
     await fetch(`/api/v1/ops/requests/${id}/status`, {
       method: "POST",
@@ -184,6 +196,11 @@ export default function Dashboard({ user }: { user: OpsSession }) {
             <Link href="/ops/partners" className="rounded bg-navy-800 px-3 py-1.5 hover:bg-navy-700">
               {t("ops.partners")}
             </Link>
+          )}
+          {user.role === "admin" && (
+            <button onClick={bootstrapSuperAdmin} className="rounded bg-gold-500 px-3 py-1.5 font-medium text-navy-900 hover:bg-gold-400">
+              {t("ops.setupSuperAdmin")}
+            </button>
           )}
           {(user.role === "admin" || user.role === "super_admin") && (
             <Link href="/ops/users" className="rounded bg-navy-800 px-3 py-1.5 hover:bg-navy-700">
