@@ -1,5 +1,6 @@
 import { getDb } from "@/lib/db";
 import { processDueWebhooks } from "@/lib/webhooks";
+import { bootstrapSuperAdminIfNeeded } from "@/lib/bootstrap";
 import { env } from "@/lib/env";
 import { json, errorResponse } from "@/lib/http";
 
@@ -20,6 +21,10 @@ async function run(req: Request): Promise<Response> {
       return json({ error: { code: "auth_error", message: "Unauthorized" } }, { status: 401 });
     }
   }
+  // One-time, self-disabling bootstrap of the initial super-admin (gated by the
+  // CRON_SECRET check above). Best-effort — never blocks webhook draining.
+  await bootstrapSuperAdminIfNeeded(getDb());
+
   const processed = await processDueWebhooks(getDb());
   return json({ processed });
 }
