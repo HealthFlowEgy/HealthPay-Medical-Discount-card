@@ -21,7 +21,9 @@ interface ClientRow {
   hasIdCard: boolean;
 }
 
-export default function UsersManager() {
+type ViewerRole = "agent" | "admin" | "super_admin";
+
+export default function UsersManager({ viewerRole }: { viewerRole: ViewerRole }) {
   const { t } = useI18n();
   const [tab, setTab] = useState<"employees" | "clients">("employees");
 
@@ -54,14 +56,15 @@ export default function UsersManager() {
             </button>
           ))}
         </div>
-        {tab === "employees" ? <Employees /> : <Clients />}
+        {tab === "employees" ? <Employees viewerRole={viewerRole} /> : <Clients />}
       </div>
     </div>
   );
 }
 
-function Employees() {
+function Employees({ viewerRole }: { viewerRole: ViewerRole }) {
   const { t } = useI18n();
+  const isSuper = viewerRole === "super_admin";
   const [items, setItems] = useState<Employee[]>([]);
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "agent" });
   const [error, setError] = useState<string | null>(null);
@@ -101,7 +104,7 @@ function Employees() {
         <input required placeholder={t("ops.name")} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="inp" />
         <input required type="email" placeholder={t("login.email")} value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className="inp" />
         <input required type="password" minLength={8} placeholder={t("login.password")} value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} className="inp" />
-        <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} className="inp">
+        <select value={form.role} disabled={!isSuper} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} className="inp disabled:opacity-60" title={isSuper ? undefined : t("ops.roleSuperOnly")}>
           <option value="agent">{t("ops.roleAgent")}</option>
           <option value="admin">{t("ops.roleAdmin")}</option>
         </select>
@@ -122,8 +125,9 @@ function Employees() {
                 <td className="px-4 py-2.5">
                   <select
                     value={u.role}
-                    disabled={u.role === "super_admin"}
+                    disabled={!isSuper || u.role === "super_admin"}
                     onChange={(e) => patch(u.id, { role: e.target.value })}
+                    title={isSuper ? undefined : t("ops.roleSuperOnly")}
                     className="rounded border border-navy-100 px-1.5 py-0.5 text-xs disabled:opacity-70"
                   >
                     <option value="agent">{t("ops.roleAgent")}</option>

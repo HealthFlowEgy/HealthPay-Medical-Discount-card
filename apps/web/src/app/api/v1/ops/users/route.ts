@@ -1,8 +1,8 @@
 import { desc } from "drizzle-orm";
-import { opsUserCreateSchema, ValidationError } from "@healthpay/shared";
+import { opsUserCreateSchema, ValidationError, AuthError } from "@healthpay/shared";
 import { opsUsers } from "@healthpay/db/schema";
 import { getDb } from "@/lib/db";
-import { requireOpsUser, createOpsUser } from "@/lib/ops-auth";
+import { requireOpsUser, roleAtLeast, createOpsUser } from "@/lib/ops-auth";
 import { writeAudit } from "@/lib/audit";
 import { json, errorResponse } from "@/lib/http";
 
@@ -36,6 +36,11 @@ export async function POST(req: Request) {
     const admin = await requireOpsUser("admin");
     const parsed = opsUserCreateSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) throw new ValidationError("Validation failed", parsed.error.flatten());
+
+    // Admins may only create agents; assigning any elevated role is super-admin-only.
+    if (parsed.data.role !== "agent" && !roleAtLeast(admin.role, "super_admin")) {
+      throw new AuthError("Only a super-admin can assign roles above agent.");
+    }
 
     const db = getDb();
     const created = await createOpsUser(db, parsed.data);

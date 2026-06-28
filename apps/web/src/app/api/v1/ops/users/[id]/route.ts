@@ -16,6 +16,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const parsed = opsUserUpdateSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) throw new ValidationError("Validation failed", parsed.error.flatten());
 
+    // Only a super-admin may change roles; admins can only activate/deactivate.
+    if (parsed.data.role !== undefined && !roleAtLeast(admin.role, "super_admin")) {
+      throw new AuthError("Only a super-admin can change a user's role.");
+    }
+
     // An admin cannot deactivate or demote themselves (avoid lock-out).
     if (params.id === admin.userId && (parsed.data.active === false || parsed.data.role === "agent")) {
       throw new ConflictError("You cannot deactivate or demote your own account.");

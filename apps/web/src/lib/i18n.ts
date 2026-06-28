@@ -56,11 +56,6 @@ export const STRINGS: Dict = {
   "ops.auditTrail": { en: "Audit trail", ar: "سجل التدقيق" },
   "ops.users": { en: "Users", ar: "المستخدمون" },
   "ops.partners": { en: "Partners", ar: "الشركاء" },
-  "ops.setupSuperAdmin": { en: "Set up super-admin", ar: "تفعيل المدير العام" },
-  "ops.superAdminGranted": {
-    en: "You're now a super-admin. Please sign in again to access Partners.",
-    ar: "أصبحت الآن مديرًا عامًا. يرجى تسجيل الدخول مرة أخرى للوصول إلى الشركاء.",
-  },
   "partners.title": { en: "Partners", ar: "الشركاء" },
   "partners.subtitle": {
     en: "Provision partners and manage their API keys.",
@@ -101,6 +96,7 @@ export const STRINGS: Dict = {
   "ops.role": { en: "Role", ar: "الدور" },
   "ops.roleAdmin": { en: "Admin", ar: "مدير" },
   "ops.roleSuper": { en: "Super Admin", ar: "مدير عام" },
+  "ops.roleSuperOnly": { en: "Only a super-admin can change roles", ar: "المدير العام فقط يمكنه تغيير الأدوار" },
   "ops.roleAgent": { en: "Agent", ar: "موظف" },
   "ops.name": { en: "Name", ar: "الاسم" },
   "ops.active": { en: "Active", ar: "نشط" },
