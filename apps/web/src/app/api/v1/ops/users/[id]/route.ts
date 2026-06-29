@@ -21,9 +21,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       throw new AuthError("Only a super-admin can change a user's role.");
     }
 
-    // An admin cannot deactivate or demote themselves (avoid lock-out).
-    if (params.id === admin.userId && (parsed.data.active === false || parsed.data.role === "agent")) {
-      throw new ConflictError("You cannot deactivate or demote your own account.");
+    // You cannot deactivate yourself or change your own role (avoid lock-out).
+    if (
+      params.id === admin.userId &&
+      (parsed.data.active === false ||
+        (parsed.data.role !== undefined && parsed.data.role !== admin.role))
+    ) {
+      throw new ConflictError("You cannot deactivate or change your own role.");
     }
 
     const db = getDb();

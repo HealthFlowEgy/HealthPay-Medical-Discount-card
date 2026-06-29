@@ -107,6 +107,7 @@ function Employees({ viewerRole }: { viewerRole: ViewerRole }) {
         <select value={form.role} disabled={!isSuper} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} className="inp disabled:opacity-60" title={isSuper ? undefined : t("ops.roleSuperOnly")}>
           <option value="agent">{t("ops.roleAgent")}</option>
           <option value="admin">{t("ops.roleAdmin")}</option>
+          <option value="super_admin">{t("ops.roleSuper")}</option>
         </select>
         <button className="rounded-lg bg-teal-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-600">{t("ops.addEmployee")}</button>
         {error && <div className="sm:col-span-5 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
@@ -125,14 +126,14 @@ function Employees({ viewerRole }: { viewerRole: ViewerRole }) {
                 <td className="px-4 py-2.5">
                   <select
                     value={u.role}
-                    disabled={!isSuper || u.role === "super_admin"}
+                    disabled={!isSuper}
                     onChange={(e) => patch(u.id, { role: e.target.value })}
                     title={isSuper ? undefined : t("ops.roleSuperOnly")}
                     className="rounded border border-navy-100 px-1.5 py-0.5 text-xs disabled:opacity-70"
                   >
                     <option value="agent">{t("ops.roleAgent")}</option>
                     <option value="admin">{t("ops.roleAdmin")}</option>
-                    <option value="super_admin" disabled>{t("ops.roleSuper")}</option>
+                    <option value="super_admin">{t("ops.roleSuper")}</option>
                   </select>
                 </td>
                 <td className="px-4 py-2.5">

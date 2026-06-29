@@ -192,7 +192,7 @@ export const portalRequestSchema = z
 export type PortalRequestInput = z.input<typeof portalRequestSchema>;
 export type PortalRequestParsed = z.output<typeof portalRequestSchema>;
 
-export const opsRoleSchema = z.enum(["admin", "agent"]);
+export const opsRoleSchema = z.enum(["agent", "admin", "super_admin"]);
 
 /** Open staff self-signup (defaults to agent role). */
 export const opsRegisterSchema = z.object({
