@@ -381,6 +381,65 @@
           }
         }
       },
+      "ReportPayment": {
+        "$ref": "#/definitions/ReportPayment",
+        "definitions": {
+          "ReportPayment": {
+            "type": "object",
+            "properties": {
+              "optionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "amount": {
+                "type": "number",
+                "exclusiveMinimum": true,
+                "minimum": 0
+              },
+              "currency": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 3
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "succeeded",
+                  "failed",
+                  "pending"
+                ],
+                "default": "succeeded"
+              },
+              "provider": {
+                "type": "string",
+                "maxLength": 50
+              },
+              "providerReference": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "paidAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "failureReason": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "metadata": {
+                "type": "object",
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "amount",
+              "providerReference"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
       "ProviderSearch": {
         "$ref": "#/definitions/ProviderSearch",
         "definitions": {
@@ -479,7 +538,7 @@
               "pageSize": {
                 "type": "integer",
                 "minimum": 1,
-                "maximum": 100,
+                "maximum": 1000,
                 "default": 25
               }
             },
@@ -890,6 +949,170 @@
         "responses": {
           "200": {
             "description": "Cancelled"
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict / illegal state transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/requests/{id}/payment": {
+      "post": {
+        "summary": "Report a payment collected by the app's own PSP",
+        "security": [
+          {
+            "apiKey": [],
+            "hmacTimestamp": [],
+            "hmacSignature": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportPayment"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Payment recorded"
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict / illegal state transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Latest payment for a request",
+        "security": [
+          {
+            "apiKey": [],
+            "hmacTimestamp": [],
+            "hmacSignature": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
           },
           "401": {
             "description": "Authentication failed",

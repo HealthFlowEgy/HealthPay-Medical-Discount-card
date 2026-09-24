@@ -128,6 +128,33 @@ export const confirmSchema = z.object({
   optionId: z.string().uuid(),
 });
 
+/**
+ * A payment reported by the third-party app after it collects the money via its
+ * own PSP. HealthPay records the outcome (it never handles card data). `amount`
+ * is validated server-side to equal the picked offer's discounted price.
+ */
+export const reportPaymentSchema = z.object({
+  /** Picked offer being paid for. Defaults to the confirmed selection if omitted. */
+  optionId: z.string().uuid().optional(),
+  /** Amount charged; must equal the option's discountedPrice. */
+  amount: z.number().positive(),
+  /** ISO-4217; must match the option's currency (default EGP). */
+  currency: z.string().trim().length(3).optional(),
+  /** Outcome from the PSP. */
+  status: z.enum(["succeeded", "failed", "pending"]).default("succeeded"),
+  /** PSP name used by the app, e.g. "paymob". */
+  provider: z.string().trim().max(50).optional(),
+  /** PSP transaction id — required; used for idempotency + reconciliation. */
+  providerReference: z.string().trim().min(1).max(200),
+  /** When the charge settled (ISO 8601). */
+  paidAt: z.string().datetime().optional(),
+  /** Reason when status is "failed". */
+  failureReason: z.string().trim().max(500).optional(),
+  /** Any extra PSP metadata to retain (no card data). */
+  metadata: z.record(z.unknown()).optional(),
+});
+export type ReportPaymentInput = z.input<typeof reportPaymentSchema>;
+
 /** Required "exact services" the member needs (non-empty, not generic). */
 export const requestedServicesSchema = z
   .string()

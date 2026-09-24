@@ -11,6 +11,7 @@ import {
   expireRequestIfDue,
 } from "@/lib/requests";
 import { serializeOption } from "@/lib/serializers";
+import { getLatestPayment, serializePayment } from "@/lib/payments";
 import { writeAudit } from "@/lib/audit";
 import { json, errorResponse } from "@/lib/http";
 
@@ -54,6 +55,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
     const options = await getOptions(db, request.id);
     const confirmation = await getConfirmation(db, request.id);
+    const latestPayment = await getLatestPayment(db, request.id);
     const [sms] = await db
       .select({
         status: smsMessages.status,
@@ -118,6 +120,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       revealed: reveal,
       options: options.map(serializeOption),
       selectedOptionId: confirmation?.selectedOptionId ?? null,
+      payment: latestPayment ? serializePayment(latestPayment) : null,
       confirmedAt: confirmation?.confirmedAt?.toISOString() ?? null,
       confirmedFrom: confirmation?.confirmedFrom ?? null,
       sms: sms

@@ -52,6 +52,12 @@ export const partnerStatusEnum = pgEnum("partner_status", ["active", "suspended"
 export const opsRoleEnum = pgEnum("ops_role", ["admin", "agent", "super_admin"]);
 export const actorTypeEnum = pgEnum("actor_type", ["partner", "ops", "user", "system"]);
 export const confirmedFromEnum = pgEnum("confirmed_from", ["hosted_page", "sdk"]);
+export const paymentStatusEnum = pgEnum("payment_status", [
+  "pending",
+  "succeeded",
+  "failed",
+  "refunded",
+]);
 export const webhookStatusEnum = pgEnum("webhook_status", [
   "pending",
   "delivered",
@@ -284,6 +290,40 @@ export const confirmations = pgTable(
   }),
 );
 
+// ── Payments ──────────────────────────────────────────────────────────────
+// The actual charge is collected by the third-party app via its own PSP; this
+// table records the reported outcome so the amount is tied to the picked offer
+// and surfaced in the ops portal. HealthPay does not touch card data.
+export const payments = pgTable(
+  "payments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    requestId: uuid("request_id")
+      .notNull()
+      .references(() => serviceRequests.id, { onDelete: "cascade" }),
+    // The picked offer being paid for; kept for amount validation + reconciliation.
+    optionId: uuid("option_id").references(() => pricingOptions.id, { onDelete: "set null" }),
+    // Snapshot of the amount charged; validated to equal the option's discountedPrice.
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    currency: varchar("currency", { length: 3 }).notNull().default("EGP"),
+    status: paymentStatusEnum("status").notNull().default("pending"),
+    // The PSP used by the third-party app (free text, e.g. "paymob", "fawry").
+    provider: varchar("provider", { length: 50 }),
+    // The PSP transaction id from the third-party app — idempotency + reconciliation.
+    providerReference: text("provider_reference"),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    failureReason: text("failure_reason"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    requestIdx: index("payments_request_idx").on(t.requestId),
+    // Re-reporting the same PSP transaction updates the same row (idempotent).
+    referenceIdx: uniqueIndex("payments_provider_reference_idx").on(t.providerReference),
+  }),
+);
+
 // ── Ops users ─────────────────────────────────────────────────────────────────
 export const opsUsers = pgTable(
   "ops_users",
@@ -395,6 +435,8 @@ export type PricingOption = typeof pricingOptions.$inferSelect;
 export type NewPricingOption = typeof pricingOptions.$inferInsert;
 export type Confirmation = typeof confirmations.$inferSelect;
 export type NewConfirmation = typeof confirmations.$inferInsert;
+export type Payment = typeof payments.$inferSelect;
+export type NewPayment = typeof payments.$inferInsert;
 export type OpsUser = typeof opsUsers.$inferSelect;
 export type NewOpsUser = typeof opsUsers.$inferInsert;
 export type AuditLogEntry = typeof auditLog.$inferSelect;

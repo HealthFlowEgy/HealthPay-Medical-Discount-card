@@ -50,6 +50,28 @@ await hp.requests.cancel(req.id);
 The SDK signs every request with HMAC-SHA256 internally — you never build
 signatures yourself.
 
+## Reporting a payment
+
+Your app collects the money for the picked offer via **your own payment
+provider**, then reports the outcome to HealthPay. HealthPay never handles card
+data — it records the result, validates the amount against the offer, and shows
+it in the ops portal. The call is **idempotent** on `providerReference`.
+
+```ts
+await hp.requests.reportPayment(req.id, {
+  amount: 350,                    // must equal the picked offer's discountedPrice
+  currency: "EGP",
+  provider: "paymob",
+  providerReference: "psp_tx_123", // your PSP transaction id (required)
+  status: "succeeded",            // "succeeded" | "failed" | "pending"
+  // optionId defaults to the confirmed selection
+});
+
+const { payment } = await hp.requests.getPayment(req.id);
+console.log(payment?.status); // "succeeded"
+```
+
+
 ## Service matching (provider directory)
 
 Match against the provider directory along
@@ -173,6 +195,8 @@ renderQuoteCards(document.getElementById("cards")!, {
 | `hp.requests.get(id)` | Current status + options |
 | `hp.requests.confirm(id, optionId)` | Confirm a selection |
 | `hp.requests.cancel(id)` | Cancel a request |
+| `hp.requests.reportPayment(id, input)` | Record a payment your app collected |
+| `hp.requests.getPayment(id)` | Latest recorded payment |
 | `hp.requests.poll(id, cb, { intervalMs, until })` | Poll; returns `stop()` |
 | `hp.webhooks.verify(rawBody, sig, ts, secret, tolerance?)` | Verify a webhook |
 | `renderQuoteCards(container, { baseUrl, token })` | Browser embed (from `/embed`) |

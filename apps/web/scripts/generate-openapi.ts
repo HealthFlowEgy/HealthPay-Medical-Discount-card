@@ -14,6 +14,7 @@ import {
   createRequestSchema,
   attachOptionsSchema,
   confirmSchema,
+  reportPaymentSchema,
   pricingOptionInputSchema,
   providerSearchQuerySchema,
 } from "@healthpay/shared";
@@ -83,6 +84,7 @@ const doc = {
       AttachOptions: schema(attachOptionsSchema, "AttachOptions"),
       PricingOptionInput: schema(pricingOptionInputSchema, "PricingOptionInput"),
       Confirm: schema(confirmSchema, "Confirm"),
+      ReportPayment: schema(reportPaymentSchema, "ReportPayment"),
       ProviderSearch: schema(providerSearchQuerySchema, "ProviderSearch"),
     },
   },
@@ -146,6 +148,21 @@ const doc = {
         security: partnerSecurity,
         parameters: [pathId()],
         responses: { "200": { description: "Cancelled" }, ...errorResponses },
+      },
+    },
+    "/api/v1/requests/{id}/payment": {
+      post: {
+        summary: "Report a payment collected by the app's own PSP",
+        security: partnerSecurity,
+        parameters: [pathId()],
+        requestBody: { required: true, content: jsonOf("ReportPayment") },
+        responses: { "201": { description: "Payment recorded" }, ...errorResponses },
+      },
+      get: {
+        summary: "Latest payment for a request",
+        security: partnerSecurity,
+        parameters: [pathId()],
+        responses: { "200": { description: "OK" }, ...errorResponses },
       },
     },
     "/api/v1/quote/{token}": {

@@ -15,6 +15,10 @@ import { POST as createRequestRoute } from "@/app/api/v1/requests/route";
 import { GET as getRequestRoute } from "@/app/api/v1/requests/[id]/route";
 import { POST as confirmRoute } from "@/app/api/v1/requests/[id]/confirm/route";
 import { POST as cancelRoute } from "@/app/api/v1/requests/[id]/cancel/route";
+import {
+  POST as reportPaymentRoute,
+  GET as getPaymentRoute,
+} from "@/app/api/v1/requests/[id]/payment/route";
 
 const BASE = "http://localhost:3000";
 const VALID_NID = "30101010123451"; // 2001-01-01, Cairo
@@ -191,6 +195,74 @@ describe.skipIf(!hasDb)("Partner REST API", () => {
       { params: { id } },
     );
     expect((await getRes.json()).status).toBe("expired");
+  });
+
+  it("records a reported payment, validates the amount, and is idempotent", async () => {
+    const db = getDb();
+    // create → quote → confirm
+    const createRes = await createRequestRoute(
+      signedRequest(partner, "POST", `${BASE}/api/v1/requests`, validBody),
+    );
+    const { id } = await createRes.json();
+    const req = await getRequestById(db, id);
+    await attachOptions(
+      db,
+      req!,
+      [{ providerName: "Lab A", serviceDescription: "CBC", listPrice: 500, discountedPrice: 350 }],
+      opsUserId,
+    );
+    const opts = await (await import("@/lib/requests")).getOptions(db, id);
+    const optionId = opts[0]!.id;
+    await confirmRoute(
+      signedRequest(partner, "POST", `${BASE}/api/v1/requests/${id}/confirm`, { optionId }),
+      { params: { id } },
+    );
+
+    // amount mismatch → 422
+    const badRes = await reportPaymentRoute(
+      signedRequest(partner, "POST", `${BASE}/api/v1/requests/${id}/payment`, {
+        amount: 999,
+        providerReference: "psp_bad_1",
+      }),
+      { params: { id } },
+    );
+    expect(badRes.status).toBe(422);
+
+    // correct amount → 201, succeeded, defaults to the confirmed option
+    const payRes = await reportPaymentRoute(
+      signedRequest(partner, "POST", `${BASE}/api/v1/requests/${id}/payment`, {
+        amount: 350,
+        provider: "paymob",
+        providerReference: "psp_tx_123",
+      }),
+      { params: { id } },
+    );
+    expect(payRes.status).toBe(201);
+    const paid = await payRes.json();
+    expect(paid.payment.status).toBe("succeeded");
+    expect(paid.payment.amount).toBe(350);
+    expect(paid.payment.optionId).toBe(optionId);
+    const paymentId = paid.payment.id;
+
+    // re-reporting the same PSP reference is idempotent (same row)
+    const payAgain = await reportPaymentRoute(
+      signedRequest(partner, "POST", `${BASE}/api/v1/requests/${id}/payment`, {
+        amount: 350,
+        provider: "paymob",
+        providerReference: "psp_tx_123",
+      }),
+      { params: { id } },
+    );
+    expect((await payAgain.json()).payment.id).toBe(paymentId);
+
+    // GET returns the latest payment
+    const getRes = await getPaymentRoute(
+      signedRequest(partner, "GET", `${BASE}/api/v1/requests/${id}/payment`),
+      { params: { id } },
+    );
+    const got = await getRes.json();
+    expect(got.payment.providerReference).toBe("psp_tx_123");
+    expect(got.payment.status).toBe("succeeded");
   });
 
   it("cancels a pending request", async () => {

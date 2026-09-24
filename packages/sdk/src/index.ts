@@ -24,6 +24,8 @@ import type {
   ServiceRequest,
   ProviderSearchParams,
   ProviderSearchResult,
+  ReportPaymentInput,
+  PaymentResult,
 } from "./types.js";
 
 export * from "./types.js";
@@ -160,6 +162,20 @@ class RequestsResource {
 
   cancel(id: string): Promise<ServiceRequest> {
     return this.client.request<ServiceRequest>("POST", `/api/v1/requests/${id}/cancel`);
+  }
+
+  /**
+   * Report a payment your app collected (via your own PSP) for the picked offer.
+   * HealthPay validates the amount against the offer and records it; the ops
+   * portal reflects it. Idempotent on `providerReference`.
+   */
+  reportPayment(id: string, input: ReportPaymentInput): Promise<PaymentResult> {
+    return this.client.request<PaymentResult>("POST", `/api/v1/requests/${id}/payment`, input);
+  }
+
+  /** Fetch the latest payment recorded for a request. */
+  getPayment(id: string): Promise<PaymentResult> {
+    return this.client.request<PaymentResult>("GET", `/api/v1/requests/${id}/payment`);
   }
 
   /**

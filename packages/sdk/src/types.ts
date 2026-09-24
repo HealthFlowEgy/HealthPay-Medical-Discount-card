@@ -157,6 +157,50 @@ export interface ServiceRequest {
   selectedOptionId?: string;
 }
 
+export type PaymentStatus = "pending" | "succeeded" | "failed" | "refunded";
+
+/** A payment your app collected via its own PSP, reported to HealthPay. */
+export interface ReportPaymentInput {
+  /** Picked offer being paid for; defaults to the confirmed selection. */
+  optionId?: string;
+  /** Amount charged; must equal the offer's discountedPrice. */
+  amount: number;
+  /** ISO-4217; must match the offer's currency (default EGP). */
+  currency?: string;
+  /** Outcome from your PSP (default "succeeded"). */
+  status?: "succeeded" | "failed" | "pending";
+  /** Your PSP's name, e.g. "paymob". */
+  provider?: string;
+  /** Your PSP's transaction id — required; used for idempotency + reconciliation. */
+  providerReference: string;
+  /** When the charge settled (ISO 8601). */
+  paidAt?: string;
+  /** Reason when status is "failed". */
+  failureReason?: string;
+  /** Extra PSP metadata to retain (never card data). */
+  metadata?: Record<string, unknown>;
+}
+
+export interface Payment {
+  id: string;
+  status: PaymentStatus;
+  amount: number;
+  currency: string;
+  provider: string | null;
+  providerReference: string | null;
+  optionId: string | null;
+  paidAt: string | null;
+  failureReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentResult {
+  requestId: string;
+  status: RequestStatus;
+  payment: Payment | null;
+}
+
 export interface ClientOptions {
   apiKey: string;
   apiSecret: string;

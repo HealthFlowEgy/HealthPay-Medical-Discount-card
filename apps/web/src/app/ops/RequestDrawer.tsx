@@ -392,6 +392,46 @@ export default function RequestDrawer({
           </section>
         )}
 
+        {/* Payment (reported by the third-party app) */}
+        {detail.payment && (
+          <section
+            className={`rounded-lg border-2 p-4 ${
+              detail.payment.status === "succeeded"
+                ? "border-emerald-500 bg-emerald-50"
+                : detail.payment.status === "failed"
+                  ? "border-red-300 bg-red-50"
+                  : "border-navy-100 bg-navy-50/50"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-navy-800">{t("drawer.payment")}</h3>
+              <span
+                className={`rounded px-2 py-0.5 text-xs font-semibold ${
+                  detail.payment.status === "succeeded"
+                    ? "bg-emerald-500 text-white"
+                    : detail.payment.status === "failed"
+                      ? "bg-red-500 text-white"
+                      : "bg-navy-200 text-navy-800"
+                }`}
+              >
+                {t(`payment.${detail.payment.status}` as never)}
+              </span>
+            </div>
+            <p className="mt-2 text-lg font-bold text-navy-900">
+              {detail.payment.amount} {detail.payment.currency}
+            </p>
+            <div className="mt-1 grid grid-cols-2 gap-2 text-xs text-navy-500">
+              {detail.payment.provider && <span>{detail.payment.provider}</span>}
+              {detail.payment.paidAt && <span>{new Date(detail.payment.paidAt).toLocaleString()}</span>}
+              {detail.payment.providerReference && (
+                <span className="col-span-2 font-mono">
+                  {t("drawer.paymentRef")}: {detail.payment.providerReference}
+                </span>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* Member */}
         <section className="rounded-lg border border-navy-100 p-4">
           <h3 className="mb-2 text-sm font-semibold text-navy-800">{t("drawer.member")}</h3>

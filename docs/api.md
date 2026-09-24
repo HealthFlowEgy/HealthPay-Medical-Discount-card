@@ -105,6 +105,36 @@ can also confirm on the hosted page). `409` if not `quoted` or expired.
 
 Cancels a `pending_quote`/`quoted` request.
 
+### `POST /api/v1/requests/:id/payment`
+
+Report a payment your app collected for the picked offer **via your own payment
+provider**. HealthPay never handles card data — it records the outcome, validates
+the amount against the selected offer, and surfaces it in the ops portal.
+**Idempotent** on `providerReference` (re-reporting the same transaction updates
+the same record).
+
+Body — what your app sends:
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `providerReference` | string | ✓ | Your PSP's transaction id (idempotency + reconciliation) |
+| `amount` | number | ✓ | Must equal the offer's `discountedPrice`, else `422` |
+| `status` | enum | | `succeeded` (default) \| `failed` \| `pending` |
+| `optionId` | uuid | | Defaults to the confirmed selection |
+| `currency` | string | | ISO-4217; must match the offer (default `EGP`) |
+| `provider` | string | | Your PSP name, e.g. `"paymob"` |
+| `paidAt` | string | | ISO-8601 settlement time |
+| `failureReason` | string | | When `status` is `failed` |
+| `metadata` | object | | Extra PSP metadata (never card data) |
+
+Response `201`: `{ "requestId", "status", "payment": { id, status, amount, currency, provider, providerReference, optionId, paidAt, … } }`.
+`422` if the amount/currency doesn't match the offer; `404` if the request isn't
+yours; `409` if no offer is selected and no `optionId` is given.
+
+### `GET /api/v1/requests/:id/payment`
+
+Returns `{ "requestId", "status", "payment" | null }` — the latest recorded payment.
+
 ---
 
 ## Hosted-page endpoints (token auth)
