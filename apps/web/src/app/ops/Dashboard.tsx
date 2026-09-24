@@ -39,6 +39,8 @@ export interface QueueItem {
   partnerReference: string | null;
   partnerName: string | null;
   paymentStatus: string | null;
+  paymentAmount: number | null;
+  paymentCurrency: string | null;
   quoteExpiresAt: string;
   createdAt: string;
   updatedAt: string;
@@ -321,6 +323,9 @@ export default function Dashboard({ user }: { user: OpsSession }) {
                           }`}
                         >
                           {t(`payment.${it.paymentStatus}` as never)}
+                          {it.paymentStatus === "succeeded" && it.paymentAmount != null
+                            ? ` · ${it.paymentAmount} ${it.paymentCurrency ?? ""}`
+                            : ""}
                         </span>
                       ) : (
                         <span className="text-navy-300">—</span>

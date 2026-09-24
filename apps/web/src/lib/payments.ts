@@ -80,6 +80,57 @@ export async function getPaymentStatusMap(
   }
 }
 
+export interface PaymentSummary {
+  status: string;
+  amount: number;
+  currency: string;
+  provider: string | null;
+  providerReference: string | null;
+  paidAt: string | null;
+}
+
+/**
+ * Map of requestId → latest payment summary (status + amount + reference), for a
+ * batch of requests. Best-effort: returns {} if the payments table isn't
+ * migrated yet, so the queue and export never break.
+ */
+export async function getPaymentSummaryMap(
+  db: Database,
+  requestIds: string[],
+): Promise<Record<string, PaymentSummary>> {
+  if (requestIds.length === 0) return {};
+  try {
+    const rows = await db
+      .select({
+        requestId: payments.requestId,
+        status: payments.status,
+        amount: payments.amount,
+        currency: payments.currency,
+        provider: payments.provider,
+        providerReference: payments.providerReference,
+        paidAt: payments.paidAt,
+      })
+      .from(payments)
+      .where(inArray(payments.requestId, requestIds))
+      .orderBy(desc(payments.createdAt));
+    const map: Record<string, PaymentSummary> = {};
+    for (const r of rows) {
+      if (r.requestId in map) continue; // newest-first → first seen is latest
+      map[r.requestId] = {
+        status: r.status,
+        amount: Number(r.amount),
+        currency: r.currency,
+        provider: r.provider,
+        providerReference: r.providerReference,
+        paidAt: r.paidAt?.toISOString() ?? null,
+      };
+    }
+    return map;
+  } catch {
+    return {};
+  }
+}
+
 /**
  * Record (or idempotently update) a payment the third-party app reports. The
  * amount is authoritative from the selected option — a mismatch is rejected so

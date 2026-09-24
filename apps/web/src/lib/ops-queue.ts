@@ -5,7 +5,7 @@ import { z } from "zod";
 import { opsQueueQuerySchema } from "@healthpay/shared";
 import { type Database } from "@healthpay/db";
 import { partners, serviceRequests, providers, clients } from "@healthpay/db/schema";
-import { getPaymentStatusMap } from "./payments.js";
+import { getPaymentSummaryMap } from "./payments.js";
 
 export type OpsQueueQuery = z.output<typeof opsQueueQuerySchema>;
 
@@ -59,7 +59,7 @@ const exportColumns = {
 
 /** All filtered rows (no pagination) for Excel export. */
 export async function exportRequests(db: Database, q: OpsQueueQuery) {
-  return db
+  const rows = await db
     .select(exportColumns)
     .from(serviceRequests)
     .leftJoin(partners, eq(serviceRequests.partnerId, partners.id))
@@ -68,6 +68,12 @@ export async function exportRequests(db: Database, q: OpsQueueQuery) {
     .where(queueWhere(q))
     .orderBy(desc(serviceRequests.createdAt))
     .limit(5000);
+
+  const payMap = await getPaymentSummaryMap(
+    db,
+    rows.map((r) => r.id),
+  );
+  return rows.map((r) => ({ ...r, payment: payMap[r.id] ?? null }));
 }
 
 export async function listRequests(db: Database, q: OpsQueueQuery) {
@@ -91,12 +97,20 @@ export async function listRequests(db: Database, q: OpsQueueQuery) {
     .limit(q.pageSize)
     .offset((q.page - 1) * q.pageSize);
 
-  // Best-effort payment status per request (degrades to null if not migrated).
-  const statusMap = await getPaymentStatusMap(
+  // Best-effort payment summary per request (degrades to null if not migrated).
+  const payMap = await getPaymentSummaryMap(
     db,
     rows.map((r) => r.id),
   );
-  const items = rows.map((r) => ({ ...r, paymentStatus: statusMap[r.id] ?? null }));
+  const items = rows.map((r) => {
+    const p = payMap[r.id];
+    return {
+      ...r,
+      paymentStatus: p?.status ?? null,
+      paymentAmount: p?.amount ?? null,
+      paymentCurrency: p?.currency ?? null,
+    };
+  });
 
   return {
     items,

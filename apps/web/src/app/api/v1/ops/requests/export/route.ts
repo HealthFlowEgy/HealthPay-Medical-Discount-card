@@ -34,6 +34,12 @@ export async function GET(req: Request) {
         return "";
       }
     };
+    const PAYMENT_STATUS_AR: Record<string, string> = {
+      succeeded: "مدفوع",
+      pending: "قيد الدفع",
+      failed: "فشل الدفع",
+      refunded: "مُسترد",
+    };
     const data = rows.map((r) => ({
       "اسم العميل": r.memberNameAr ?? r.memberNameEn ?? r.partnerName ?? "",
       "الرقم القومي": fullNid(r.nationalIdEncrypted),
@@ -42,6 +48,12 @@ export async function GET(req: Request) {
         r.providerName ?? (r.providerType ? PROVIDER_TYPE_LABELS[r.providerType].ar : ""),
       "الخدمات المطلوبة": r.requestedServices ?? "",
       "الحالة": r.status,
+      "حالة الدفع": r.payment ? (PAYMENT_STATUS_AR[r.payment.status] ?? r.payment.status) : "غير مدفوع",
+      "المبلغ المدفوع": r.payment ? r.payment.amount : "",
+      "العملة": r.payment?.currency ?? "",
+      "مزود الدفع": r.payment?.provider ?? "",
+      "مرجع العملية": r.payment?.providerReference ?? "",
+      "تاريخ الدفع": r.payment?.paidAt ? r.payment.paidAt.slice(0, 16).replace("T", " ") : "",
       "المحافظة": r.governorate,
       "المنطقة": r.area ?? "",
       "التاريخ": r.createdAt.toISOString().slice(0, 16).replace("T", " "),
