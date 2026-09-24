@@ -1,5 +1,6 @@
 import { getDb } from "@/lib/db";
 import { processDueWebhooks } from "@/lib/webhooks";
+import { ensureSchemaMigrated } from "@/lib/schema-migrate";
 import { env } from "@/lib/env";
 import { json, errorResponse } from "@/lib/http";
 
@@ -20,6 +21,9 @@ async function run(req: Request): Promise<Response> {
       return json({ error: { code: "auth_error", message: "Unauthorized" } }, { status: 401 });
     }
   }
+  // Apply any pending schema migrations (idempotent; once per warm instance).
+  await ensureSchemaMigrated(getDb());
+
   const processed = await processDueWebhooks(getDb());
   return json({ processed });
 }

@@ -55,7 +55,13 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
     const options = await getOptions(db, request.id);
     const confirmation = await getConfirmation(db, request.id);
-    const latestPayment = await getLatestPayment(db, request.id);
+    // Resilient: the payments table may not be migrated yet in an environment.
+    let latestPayment = null;
+    try {
+      latestPayment = await getLatestPayment(db, request.id);
+    } catch {
+      latestPayment = null;
+    }
     const [sms] = await db
       .select({
         status: smsMessages.status,
