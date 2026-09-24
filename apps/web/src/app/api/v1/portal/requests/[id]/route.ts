@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import { requireClient } from "@/lib/client-auth";
 import { getRequestById, getOptions, getConfirmation, expireRequestIfDue } from "@/lib/requests";
 import { serializeRequestForClient } from "@/lib/serializers";
+import { getLatestPayment, serializePayment } from "@/lib/payments";
 import { json, errorResponse } from "@/lib/http";
 
 export const runtime = "nodejs";
@@ -20,7 +21,17 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     request = await expireRequestIfDue(db, request);
     const options = await getOptions(db, request.id);
     const confirmation = await getConfirmation(db, request.id);
-    return json(serializeRequestForClient(request, options, confirmation?.selectedOptionId));
+    let payment = null;
+    try {
+      const latest = await getLatestPayment(db, request.id);
+      payment = latest ? serializePayment(latest) : null;
+    } catch {
+      payment = null;
+    }
+    return json({
+      ...serializeRequestForClient(request, options, confirmation?.selectedOptionId),
+      payment,
+    });
   } catch (err) {
     return errorResponse(err);
   }

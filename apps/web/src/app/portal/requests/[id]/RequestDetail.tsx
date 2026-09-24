@@ -23,6 +23,14 @@ interface Option {
   currency: string;
   isAlternative?: boolean;
 }
+interface Payment {
+  status: "pending" | "succeeded" | "failed" | "refunded";
+  amount: number;
+  currency: string;
+  provider: string | null;
+  providerReference: string | null;
+  paidAt: string | null;
+}
 interface Detail {
   id: string;
   status: RequestStatus;
@@ -32,6 +40,7 @@ interface Detail {
   requestedServices: string | null;
   options: Option[];
   selectedOptionId: string | null;
+  payment: Payment | null;
 }
 
 export default function RequestDetail({ id }: { id: string }) {
@@ -107,6 +116,23 @@ export default function RequestDetail({ id }: { id: string }) {
               </li>
             ))}
           </ol>
+        </div>
+      )}
+
+      {d.payment && (
+        <div
+          className={`mt-3 flex items-center justify-between rounded-lg border px-3 py-2 text-sm ${
+            d.payment.status === "succeeded"
+              ? "border-emerald-500/40 bg-emerald-50 text-emerald-700"
+              : d.payment.status === "failed"
+                ? "border-red-300 bg-red-50 text-red-600"
+                : "border-navy-100 bg-navy-50 text-navy-700"
+          }`}
+        >
+          <span className="font-medium">{t(`payment.${d.payment.status}` as never)}</span>
+          <span className="font-semibold">
+            {d.payment.amount} {d.payment.currency}
+          </span>
         </div>
       )}
 
