@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import { requireClient, getClientById } from "@/lib/client-auth";
 import { createClientRequest, getClientRequests, getOptions } from "@/lib/requests";
 import { serializeRequestForClient } from "@/lib/serializers";
+import { getPaymentStatusMap } from "@/lib/payments";
 import { json, errorResponse } from "@/lib/http";
 
 export const runtime = "nodejs";
@@ -14,13 +15,14 @@ export async function GET() {
     const session = await requireClient();
     const db = getDb();
     const rows = await getClientRequests(db, session.clientId);
+    const statusMap = await getPaymentStatusMap(db, rows.map((r) => r.id));
     const items = await Promise.all(
       rows.map(async (r) => {
         const options =
           r.status === "quoted" || r.status === "confirmed" || r.status === "completed"
             ? await getOptions(db, r.id)
             : [];
-        return serializeRequestForClient(r, options);
+        return { ...serializeRequestForClient(r, options), paymentStatus: statusMap[r.id] ?? null };
       }),
     );
     return json({ items });

@@ -7,7 +7,7 @@
  * the ops portal.
  */
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { ConflictError, NotFoundError, ValidationError } from "@healthpay/shared";
 import type { Database, Payment, PricingOption, ServiceRequest } from "@healthpay/db";
 import { payments, pricingOptions } from "@healthpay/db/schema";
@@ -52,6 +52,32 @@ export async function getLatestPayment(db: Database, requestId: string): Promise
     .orderBy(desc(payments.createdAt))
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * Map of requestId → latest payment status, for a batch of requests. Best-effort:
+ * returns {} if the payments table isn't migrated yet, so list views never break.
+ */
+export async function getPaymentStatusMap(
+  db: Database,
+  requestIds: string[],
+): Promise<Record<string, string>> {
+  if (requestIds.length === 0) return {};
+  try {
+    const rows = await db
+      .select({ requestId: payments.requestId, status: payments.status })
+      .from(payments)
+      .where(inArray(payments.requestId, requestIds))
+      .orderBy(desc(payments.createdAt));
+    const map: Record<string, string> = {};
+    for (const r of rows) {
+      // Rows are newest-first, so the first seen per request is the latest.
+      if (!(r.requestId in map)) map[r.requestId] = r.status;
+    }
+    return map;
+  } catch {
+    return {};
+  }
 }
 
 /**

@@ -38,6 +38,7 @@ export const STRINGS: Dict = {
   "ops.allServices": { en: "All services", ar: "كل الخدمات" },
   "ops.search": { en: "Search mobile / partner ref…", ar: "بحث برقم الموبايل / مرجع الشريك…" },
   "ops.col.status": { en: "Status", ar: "الحالة" },
+  "ops.col.payment": { en: "Payment", ar: "الدفع" },
   "ops.col.service": { en: "Service", ar: "الخدمة" },
   "ops.col.location": { en: "Location", ar: "الموقع" },
   "ops.col.mobile": { en: "Mobile", ar: "الموبايل" },

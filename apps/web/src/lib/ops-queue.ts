@@ -5,6 +5,7 @@ import { z } from "zod";
 import { opsQueueQuerySchema } from "@healthpay/shared";
 import { type Database } from "@healthpay/db";
 import { partners, serviceRequests, providers, clients } from "@healthpay/db/schema";
+import { getPaymentStatusMap } from "./payments.js";
 
 export type OpsQueueQuery = z.output<typeof opsQueueQuerySchema>;
 
@@ -90,8 +91,15 @@ export async function listRequests(db: Database, q: OpsQueueQuery) {
     .limit(q.pageSize)
     .offset((q.page - 1) * q.pageSize);
 
+  // Best-effort payment status per request (degrades to null if not migrated).
+  const statusMap = await getPaymentStatusMap(
+    db,
+    rows.map((r) => r.id),
+  );
+  const items = rows.map((r) => ({ ...r, paymentStatus: statusMap[r.id] ?? null }));
+
   return {
-    items: rows,
+    items,
     total: count,
     page: q.page,
     pageSize: q.pageSize,

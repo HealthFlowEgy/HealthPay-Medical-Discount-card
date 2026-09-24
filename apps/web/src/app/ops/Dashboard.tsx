@@ -38,6 +38,7 @@ export interface QueueItem {
   providerName: string | null;
   partnerReference: string | null;
   partnerName: string | null;
+  paymentStatus: string | null;
   quoteExpiresAt: string;
   createdAt: string;
   updatedAt: string;
@@ -276,6 +277,7 @@ export default function Dashboard({ user }: { user: OpsSession }) {
             <thead className="bg-navy-50 text-xs uppercase tracking-wide text-navy-700">
               <tr>
                 <th className="px-4 py-2 text-start">{t("ops.col.status")}</th>
+                <th className="px-4 py-2 text-start">{t("ops.col.payment")}</th>
                 <th className="px-4 py-2 text-start">{t("ops.col.client")}</th>
                 <th className="px-4 py-2 text-start">{t("ops.col.nationalId")}</th>
                 <th className="px-4 py-2 text-start">{t("ops.col.phone")}</th>
@@ -306,6 +308,23 @@ export default function Dashboard({ user }: { user: OpsSession }) {
                       >
                         {L(STATUS_LABELS[it.status])}
                       </span>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {it.paymentStatus ? (
+                        <span
+                          className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
+                            it.paymentStatus === "succeeded"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : it.paymentStatus === "failed"
+                                ? "bg-red-50 text-red-600"
+                                : "bg-navy-100 text-navy-700"
+                          }`}
+                        >
+                          {t(`payment.${it.paymentStatus}` as never)}
+                        </span>
+                      ) : (
+                        <span className="text-navy-300">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-2.5">
                       {it.memberNameAr || it.memberNameEn || it.partnerName || "—"}

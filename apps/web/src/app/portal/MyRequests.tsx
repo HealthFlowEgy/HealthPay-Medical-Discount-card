@@ -20,6 +20,7 @@ interface Req {
   governorate: Governorate;
   area: string | null;
   requestedServices: string | null;
+  paymentStatus: string | null;
   createdAt: string;
 }
 
@@ -86,9 +87,24 @@ export default function MyRequests({ clientName }: { clientName: string }) {
                     </ul>
                   )}
                 </div>
-                <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium ${STATUS_COLOR[r.status] ?? ""}`}>
-                  {L(STATUS_LABELS[r.status])}
-                </span>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <span className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_COLOR[r.status] ?? ""}`}>
+                    {L(STATUS_LABELS[r.status])}
+                  </span>
+                  {r.paymentStatus && (
+                    <span
+                      className={`rounded px-2 py-0.5 text-xs font-medium ${
+                        r.paymentStatus === "succeeded"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : r.paymentStatus === "failed"
+                            ? "bg-red-50 text-red-600"
+                            : "bg-navy-100 text-navy-700"
+                      }`}
+                    >
+                      {t(`payment.${r.paymentStatus}` as never)}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="mt-3 flex items-center justify-between">
                 <span className="text-xs text-navy-400">{new Date(r.createdAt).toLocaleString()}</span>
